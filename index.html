@@ -359,14 +359,14 @@
         <h3>Ranking de Jogadores</h3>
         <ul id="ranking-list-pc"><li>Carregando...</li></ul>
     </div>
-    <button id="audio-btn-pc">INICIAR.AUDIO()</button>
+    <button id="audio-btn-pc">PARAR.AUDIO()</button>
     <div id="instructions-pc">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar (20 TB)</div>
     
     <!-- Game Over Mobile -->
     <div id="game-over" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
-            <p>DADOS EXTRAÍDOS NESSA SESSÃO: <span id="go-score">0</span></p>
+            <p>DADOS EXTRAÍDOS: <span id="go-score">0</span></p>
             <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span></p>
             <p>RECORDE GLOBAL DO JOGO: <span id="go-global-best">0</span></p>
         </div>
@@ -377,9 +377,9 @@
     <div id="game-over-pc" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
-            <p>DADOS EXTRAÍDOS NESTA SESSÃO: <span id="go-score-pc">0</span> TB</p>
-            <p>SEU RECORDE PESSOAL: <span id="go-personal-best-pc">0</span> TB</p>
-            <p>RECORDE GLOBAL: <span id="go-global-best-pc">0</span> TB</p>
+            <p>DADOS EXTRAÍDOS NESTA SESSÃO: <span id="go-score-pc">0</span></p>
+            <p>SEU RECORDE PESSOAL: <span id="go-personal-best-pc">0</span></p>
+            <p>RECORDE GLOBAL: <span id="go-global-best-pc">0</span></p>
         </div>
         <p>> Pressione [ ESPAÇO ] para reiniciar a invasão_</p>
     </div>
@@ -445,7 +445,7 @@
             }
         }
 
-        // Música de fundo sintetizada unificada e com reinício automático ao ressuscitar
+        // Música de fundo sintetizada unificada
         let isAudioPlaying = false;
         let audioInterval = null;
         function startSynthMusic() {
@@ -852,8 +852,12 @@
             gameState = 'PLAYING';
             document.getElementById('game-over').style.display = 'none';
             document.getElementById('game-over-pc').style.display = 'none';
+            if (isMobile) document.getElementById('pause-btn').style.display = 'flex';
 
-            if (soundEnabled && !isAudioPlaying) startSynthMusic();
+            if (soundEnabled) {
+                stopSynthMusic();
+                startSynthMusic();
+            }
         }
 
         function spawnFood(x, y, isDrop = false) {
@@ -1106,20 +1110,19 @@
             isDashing = false;
             playSound('die');
 
-            if (isMobile) document.getElementById('pause-btn').style.display = 'none';
             stopSynthMusic();
 
             if (player.score > personalBest) personalBest = Math.floor(player.score);
             
             if (isMobile) {
-                document.getElementById('go-score').innerText = Math.floor(player.score);
-                document.getElementById('go-personal-best').innerText = personalBest;
-                document.getElementById('go-global-best').innerText = Math.max(globalBest, personalBest);
+                document.getElementById('go-score').innerText = Math.floor(player.score) + ' TB';
+                document.getElementById('go-personal-best').innerText = personalBest + ' TB';
+                document.getElementById('go-global-best').innerText = Math.max(globalBest, personalBest) + ' TB';
                 document.getElementById('game-over').style.display = 'flex';
             } else {
-                document.getElementById('go-score-pc').innerText = Math.floor(player.score);
-                document.getElementById('go-personal-best-pc').innerText = personalBest;
-                document.getElementById('go-global-best-pc').innerText = Math.max(globalBest, personalBest);
+                document.getElementById('go-score-pc').innerText = Math.floor(player.score) + ' TB';
+                document.getElementById('go-personal-best-pc').innerText = personalBest + ' TB';
+                document.getElementById('go-global-best-pc').innerText = Math.max(globalBest, personalBest) + ' TB';
                 document.getElementById('game-over-pc').style.display = 'flex';
             }
             
