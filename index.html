@@ -2,7 +2,6 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <!-- Meta tag essencial para travar o zoom e escala no mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Cyber-Hack: Invasão Mobile</title>
     
@@ -34,7 +33,7 @@
             -webkit-user-select: none;
             -webkit-touch-callout: none;
             color: var(--primary);
-            touch-action: none; /* Previne scroll nativo no mobile */
+            touch-action: none;
         }
 
         canvas {
@@ -43,7 +42,7 @@
             height: 100vh;
         }
 
-        /* UI do Jogo */
+        /* UI do Jogo - TUDO QUADRADO */
         #hud-top {
             position: absolute;
             top: env(safe-area-inset-top, 10px);
@@ -60,19 +59,18 @@
             border: 1px solid var(--primary);
             padding: 8px 12px;
             font-size: 16px;
-            border-radius: 4px;
             box-shadow: 0 0 10px var(--primary-glow);
+            border-radius: 0; /* Correção: forçando quadrado */
         }
 
-        /* Ranking Reduzido para Mobile */
         #ranking-panel {
             background: var(--panel-bg);
             border: 1px solid var(--primary);
             padding: 8px;
             width: 140px;
             font-size: 10px;
-            border-radius: 4px;
             box-shadow: 0 0 10px var(--primary-glow);
+            border-radius: 0; /* Correção: forçando quadrado */
         }
 
         #ranking-panel h3 {
@@ -98,7 +96,6 @@
             text-overflow: ellipsis;
         }
 
-        /* Controles Inferiores */
         #hud-bottom {
             position: absolute;
             bottom: env(safe-area-inset-bottom, 15px);
@@ -111,11 +108,13 @@
 
         .instructions {
             font-size: 11px;
-            color: rgba(0, 255, 102, 0.7);
-            background: rgba(0,0,0,0.5);
-            padding: 4px 8px;
-            border-radius: 10px;
+            color: var(--bg-dark);
+            background: var(--primary);
+            padding: 6px 10px;
             display: inline-block;
+            font-weight: bold;
+            border: 1px solid var(--primary);
+            border-radius: 0; /* Correção: forçando quadrado */
         }
 
         /* Telas de Overlay */
@@ -149,7 +148,6 @@
             margin-bottom: 20px;
         }
 
-        /* Inputs e Botões Otimizados para Toque (Min 44px) */
         input {
             width: 100%;
             max-width: 280px;
@@ -162,8 +160,8 @@
             outline: none;
             text-align: center;
             margin-bottom: 15px;
-            border-radius: 8px;
             -webkit-appearance: none;
+            border-radius: 0; /* Correção: forçando quadrado */
         }
 
         input:focus {
@@ -180,9 +178,9 @@
             padding: 16px;
             font-size: 18px;
             font-family: 'Share Tech Mono', monospace;
-            border-radius: 8px;
             margin-top: 10px;
             font-weight: bold;
+            border-radius: 0; /* Correção: forçando quadrado */
         }
 
         button:active {
@@ -213,7 +211,6 @@
 </head>
 <body>
 
-    <!-- Tela de Login -->
     <div id="login-screen" class="overlay-screen">
         <h1>CYBER-HACK</h1>
         <p>> INVASÃO MOBILE_</p>
@@ -223,7 +220,6 @@
         <div id="error-msg"></div>
     </div>
 
-    <!-- HUD em Jogo -->
     <div id="hud-top" style="display: none;">
         <div id="score-panel"><span id="score">0</span> TB</div>
         <div id="ranking-panel">
@@ -233,10 +229,9 @@
     </div>
 
     <div id="hud-bottom" style="display: none;">
-        <div class="instructions">GUIAR: Arraste | DASH: 2 Toques (Segure) | TIRO: 3 Toques (Custa 20 TB)</div>
+        <div class="instructions">ARRASTAR = Guiar | 2 TOQUES = Dash | 3 TOQUES = Tiro</div>
     </div>
     
-    <!-- Tela de Game Over -->
     <div id="game-over" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
@@ -250,7 +245,6 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // CONFIGURAÇÃO FIREBASE (MANTIDA IGUAL AO ORIGINAL)
         const firebaseConfig = {
             apiKey: "AIzaSyDGBcZWWav3uxZBPalg9GKLolQH_J18L0s",
             authDomain: "cyber-hack-c0f4d.firebaseapp.com",
@@ -263,41 +257,36 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // VARIÁVEIS DE ESTADO E REFERÊNCIAS
         let myNickname = "";
         let playerDocRef = null;
         let personalBest = 0;
         let globalBest = 0;
         let gameState = 'LOGIN';
 
-        // ELEMENTOS DOM
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // Otimização mobile
+        const ctx = canvas.getContext('2d', { alpha: false });
         const scoreEl = document.getElementById('score');
         const rankingList = document.getElementById('ranking-list');
         const hudTop = document.getElementById('hud-top');
         const hudBottom = document.getElementById('hud-bottom');
 
-        // AJUSTES DE PROPORÇÃO PARA MOBILE
         let width, height;
-        const BASE_SEGMENTS = 8;     // Menor para mobile
-        const BASE_SPEED = 3.5;      // Proporcional a telas menores
-        const DASH_SPEED = 7.0;
+        const BASE_SEGMENTS = 8;     
+        const BASE_SPEED = 4.0;      
+        const DASH_SPEED = 8.0;
         const MAGNET_RADIUS = 60; 
-        const GRID_SIZE = 40;        // Fundo com grid mais denso
-        const MAX_FOOD = 150;        // Menos elementos para garantir 60fps
-        const MAX_BOTS = 10;         // Menos bots simultâneos no mobile
+        const GRID_SIZE = 50;        
+        const MAX_FOOD = 150;        
+        const MAX_BOTS = 12;         
 
-        // OBJETO JOGADOR
         const player = { x: 0, y: 0, radius: 8, speed: BASE_SPEED, segments: [], score: 0 };
         let camera = { x: 0, y: 0 };
         let target = { x: 0, y: 0 };
         let isDashing = false;
 
-        // SISTEMA DE TOQUES (DASH E TIRO)
         let tapTimes = [];
-        const DASH_TAP_WINDOW = 350; // ms máximo entre toques para duplo clique
-        const SHOOT_TAP_WINDOW = 600; // ms máximo entre 3 toques para atirar
+        const DASH_TAP_WINDOW = 350; 
+        const SHOOT_TAP_WINDOW = 600; 
 
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -306,35 +295,37 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // LÓGICA DE CONTROLES MOBILE
+        // CONTROLES MOBILE - LÓGICA CORRIGIDA
         canvas.addEventListener('touchstart', (e) => {
             if (gameState !== 'PLAYING') return;
             e.preventDefault(); 
             
-            const touch = e.touches[0];
-            target.x = camera.x + touch.clientX;
-            target.y = camera.y + touch.clientY;
-
             const now = Date.now();
             tapTimes.push(now);
-
-            // Mantém apenas os últimos 3 toques
             if (tapTimes.length > 3) tapTimes.shift();
 
+            // Verifica se é um Tiro (3 Toques)
             if (tapTimes.length === 3 && (now - tapTimes[0] < SHOOT_TAP_WINDOW)) {
-                // TRIPLO TOQUE: Atirar
                 shootProjectile();
-                tapTimes = []; // Reseta
+                tapTimes = []; 
                 isDashing = false;
-            } else if (tapTimes.length >= 2 && (now - tapTimes[tapTimes.length - 2] < DASH_TAP_WINDOW)) {
-                // DUPLO TOQUE + SEGURAR: Dash
+            } 
+            // Verifica se é um Dash (2 Toques)
+            else if (tapTimes.length >= 2 && (now - tapTimes[tapTimes.length - 2] < DASH_TAP_WINDOW)) {
                 isDashing = true;
+            } 
+            // Caso contrário (Toque Simples ou Arraste inicial), e apenas se for o 1º dedo na tela
+            else if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                target.x = camera.x + touch.clientX;
+                target.y = camera.y + touch.clientY;
             }
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
             if (gameState !== 'PLAYING') return;
             e.preventDefault();
+            // Sempre obedece o primeiro dedo (Thumb 1) para guiar, permitindo multi-touch perfeito
             const touch = e.touches[0];
             target.x = camera.x + touch.clientX;
             target.y = camera.y + touch.clientY;
@@ -349,7 +340,6 @@
 
         canvas.addEventListener('touchcancel', () => { isDashing = false; });
 
-        // AÇÃO DE ATIRAR
         let projectiles = [];
         function shootProjectile() {
             if (player.score >= 20) {
@@ -360,18 +350,16 @@
                 const angle = Math.atan2(target.y - player.y, target.x - player.x);
                 projectiles.push({
                     x: player.x, y: player.y,
-                    vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12,
+                    vx: Math.cos(angle) * 14, vy: Math.sin(angle) * 14,
                     life: 60, text: Math.random() < 0.5 ? '0' : '1'
                 });
 
-                // Perde massa ao atirar
                 if(player.segments.length > BASE_SEGMENTS) {
                     player.segments.pop(); player.segments.pop();
                 }
             }
         }
 
-        // LOGIN E INICIALIZAÇÃO
         document.getElementById('start-btn').addEventListener('click', async () => {
             const nick = document.getElementById('nickname-input').value.trim().toUpperCase();
             const pass = document.getElementById('password-input').value.trim();
@@ -425,7 +413,6 @@
             resetGame();
         });
 
-        // ENTIDADES DO JOGO
         let foods = [];
         let particles = [];
         let bots = [];
@@ -449,10 +436,13 @@
             document.getElementById('game-over').style.display = 'none';
         }
 
+        // LÓGICA DE SPAWN CORRIGIDA PARA NUNCA FALTAR
         function spawnFood(x, y, isDrop = false) {
             if (x === undefined) {
                 const angle = Math.random() * Math.PI * 2;
-                const dist = (Math.random() * width * 1.5) + 50;
+                const maxDim = Math.max(width, height);
+                // Spawna numa área entre 60% e 120% da maior tela em relação ao player
+                const dist = (Math.random() * (maxDim * 0.6)) + (maxDim * 0.6);
                 x = player.x + Math.cos(angle) * dist;
                 y = player.y + Math.sin(angle) * dist;
             }
@@ -475,12 +465,13 @@
         class Bot {
             constructor() {
                 const ang = Math.random() * Math.PI * 2;
-                const dist = width * 0.8 + Math.random() * width;
+                const maxDim = Math.max(width, height);
+                const dist = maxDim * 0.8 + Math.random() * (maxDim * 0.4);
                 this.x = player.x + Math.cos(ang) * dist;
                 this.y = player.y + Math.sin(ang) * dist;
                 this.radius = 8;
                 this.speed = BASE_SPEED * (0.8 + Math.random() * 0.4);
-                this.angle = ang + Math.PI; // Vira pra dentro
+                this.angle = ang + Math.PI;
                 this.segments = Array(8).fill().map(() => ({x: this.x, y: this.y}));
                 this.score = 0;
                 this.dead = false;
@@ -488,7 +479,16 @@
             update() {
                 if(this.dead) return;
                 
-                // IA Simples otimizada
+                // Reposiciona Bots que ficaram perdidos muito longe do jogador
+                const maxDim = Math.max(width, height);
+                if (Math.hypot(player.x - this.x, player.y - this.y) > maxDim * 2) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const dist = maxDim * 1.2;
+                    this.x = player.x + Math.cos(ang) * dist;
+                    this.y = player.y + Math.sin(ang) * dist;
+                    for(let seg of this.segments) { seg.x = this.x; seg.y = this.y; }
+                }
+
                 let nearest = null; let minDist = 9999;
                 for(let f of foods) {
                     let d = Math.hypot(f.x - this.x, f.y - this.y);
@@ -505,7 +505,6 @@
                 this.x += Math.cos(this.angle) * this.speed;
                 this.y += Math.sin(this.angle) * this.speed;
 
-                // Segments
                 let px = this.x, py = this.y;
                 for (let seg of this.segments) {
                     let d = Math.hypot(px - seg.x, py - seg.y);
@@ -516,7 +515,6 @@
                     px = seg.x; py = seg.y;
                 }
 
-                // Comer
                 for (let i = foods.length - 1; i >= 0; i--) {
                     if (Math.hypot(this.x - foods[i].x, this.y - foods[i].y) < this.radius + 10) {
                         foods.splice(i, 1);
@@ -533,10 +531,8 @@
             }
         }
 
-        // LOOP PRINCIPAL
         let updateTimer = 0;
         function update() {
-            // Movimento do Player
             if (isDashing && player.score > 0) {
                 player.speed = DASH_SPEED;
                 player.score -= 0.5;
@@ -560,7 +556,6 @@
             camera.x = player.x - width / 2;
             camera.y = player.y - height / 2;
 
-            // Segmentos Player
             let px = player.x, py = player.y;
             const spacing = isDashing ? 11 : 7;
             for (let seg of player.segments) {
@@ -572,16 +567,20 @@
                 px = seg.x; py = seg.y;
             }
 
-            // Comida
             let t = Date.now() * 0.002;
+            const maxDim = Math.max(width, height);
+            
             for (let i = foods.length - 1; i >= 0; i--) {
                 let f = foods[i];
                 f.y = f.baseY + Math.sin(t + f.offset) * 3;
                 
                 let dist = Math.hypot(player.x - f.x, player.y - f.y);
-                if (dist > width * 1.5) {
+                
+                // LÓGICA DE DESPAWN CORRIGIDA
+                if (dist > maxDim * 1.8) {
                     foods.splice(i, 1); spawnFood(); continue;
                 }
+                
                 if (dist < player.radius + f.radius) {
                     spawnParticles(f.x, f.y, '#00ff66', 3);
                     foods.splice(i, 1);
@@ -596,7 +595,6 @@
                 }
             }
 
-            // Projeteis
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.x += p.vx; p.y += p.vy; p.life--;
@@ -614,21 +612,18 @@
                 }
             }
 
-            // Bots e Colisão
             bots = bots.filter(b => !b.dead);
             while(bots.length < MAX_BOTS) bots.push(new Bot());
 
             for (let bot of bots) {
                 bot.update();
                 
-                // Bot bate no corpo do player (Bot morre)
                 for (let seg of player.segments) {
                     if (Math.hypot(bot.x - seg.x, bot.y - seg.y) < bot.radius + player.radius*0.7) {
                         bot.die(); break;
                     }
                 }
 
-                // Player bate no corpo do Bot (Game Over)
                 if(!bot.dead && gameState === 'PLAYING') {
                     for (let seg of bot.segments) {
                         if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + bot.radius*0.7) {
@@ -641,14 +636,12 @@
                 }
             }
 
-            // Particulas
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy; p.life -= 0.05;
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
-            // Sync Database lento (a cada ~2 seg)
             updateTimer++;
             if(updateTimer > 120) { updateFirebaseScore(); updateTimer = 0; }
         }
@@ -659,7 +652,6 @@
             ctx.save();
             ctx.translate(-camera.x, -camera.y);
 
-            // Grid Mobile Otimizado (sem paths individuais longos)
             ctx.strokeStyle = 'rgba(0, 255, 102, 0.05)';
             ctx.lineWidth = 1;
             const sx = Math.floor(camera.x / GRID_SIZE) * GRID_SIZE;
@@ -673,14 +665,12 @@
             }
             ctx.stroke();
 
-            // Comida (sem sombra para perf. mobile)
             ctx.font = '12px "Share Tech Mono"';
             for (let f of foods) {
                 ctx.fillStyle = '#88ccaa';
                 ctx.fillText(f.char, f.x - 4, f.y + 4);
             }
 
-            // Particulas
             for (let p of particles) {
                 ctx.globalAlpha = Math.max(0, p.life);
                 ctx.fillStyle = p.color;
@@ -688,12 +678,10 @@
             }
             ctx.globalAlpha = 1.0;
 
-            // Projeteis
             ctx.fillStyle = '#ffcc00';
             ctx.font = 'bold 16px "Share Tech Mono"';
             for (let p of projectiles) ctx.fillText(p.text, p.x, p.y);
 
-            // Bots
             for (let bot of bots) {
                 for (let i = bot.segments.length - 1; i >= 0; i--) {
                     const seg = bot.segments[i];
@@ -706,7 +694,6 @@
                 }
             }
 
-            // Player
             if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
                 for (let i = player.segments.length - 1; i >= 0; i--) {
                     const seg = player.segments[i];
@@ -721,10 +708,14 @@
                     ctx.fill(); ctx.stroke();
                 }
                 
-                // Cabeça
+                // DESENHO DA CABEÇA CORRIGIDO (Losango/Quadrado afiado em vez de círculo)
                 ctx.fillStyle = gameState === 'GAMEOVER' ? '#555' : '#00ff66';
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.radius + 2, 0, Math.PI*2);
+                ctx.moveTo(player.x, player.y - player.radius - 2); 
+                ctx.lineTo(player.x + player.radius + 2, player.y);
+                ctx.lineTo(player.x, player.y + player.radius + 2); 
+                ctx.lineTo(player.x - player.radius - 2, player.y);
+                ctx.closePath();
                 ctx.fill();
             }
 
@@ -769,7 +760,6 @@
         }
 
         function initRealtimeRanking() {
-            // Trazemos 5 no mobile para poupar espaço vertical
             db.collection("players").orderBy("bestScore", "desc").limit(5).onSnapshot((snap) => {
                 let pData = [];
                 snap.forEach(doc => {
