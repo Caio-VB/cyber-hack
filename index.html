@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber-Hack: Invasão</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --primary: #00ff66;
+            --primary-glow: rgba(0, 255, 102, 0.3);
+            --bg-dark: #010503;
+            --panel-bg: rgba(2, 15, 8, 0.85);
+            --danger: #ff3355;
+            --danger-glow: rgba(255, 51, 85, 0.4);
+            --warning: #ffcc00;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: 'Share Tech Mono', monospace;
+            user-select: none;
+            color: var(--primary);
+            touch-action: none; /* Evita zoom e rolagem no mobile */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 20px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px var(--primary-glow);
+            pointer-events: none;
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--primary);
+            padding: 10px 16px;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        #ranking {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 230px;
+            background: var(--panel-bg);
+            border: 1px solid var(--primary);
+            padding: 12px;
+            box-shadow: 0 0 15px var(--primary-glow);
+            z-index: 10;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
+        #ranking h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 1px dashed var(--primary);
+            padding-bottom: 6px;
+            color: var(--primary);
+        }
+
+        #ranking-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 13px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        #ranking-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        #ranking-list::-webkit-scrollbar-thumb {
+            background: var(--primary);
+        }
+
+        #ranking-list li {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            text-shadow: 0 0 4px var(--primary-glow);
+        }
+
+        #audio-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 10px 18px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 200;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+        #audio-btn:hover {
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: var(--primary);
+            opacity: 0.6;
+            font-size: 13px;
+            letter-spacing: 1px;
+            pointer-events: none;
+            z-index: 200;
+            text-shadow: 0 0 5px var(--primary-glow);
+        }
+
+        /* CONTROLES MOBILE (Ocultos por padrão no PC) */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 200;
+            gap: 15px;
+        }
+
+        #mobile-controls button {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 20px;
+            font-size: 14px;
+            font-family: 'Share Tech Mono', monospace;
+            border-radius: 8px;
+            box-shadow: 0 0 10px var(--primary-glow);
+            touch-action: manipulation;
+        }
+
+        #mobile-controls button:active {
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            #mobile-controls {
+                display: flex;
+            }
+            #instructions {
+                display: none; 
+            }
+        }
+
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(1, 8, 4, 0.92);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .overlay-screen h1 {
+            font-size: 48px;
+            color: var(--danger);
+            margin: 0;
+            letter-spacing: 3px;
+            text-shadow: 0 0 25px var(--danger-glow);
+            text-align: center;
+        }
+
+        .overlay-screen p {
+            font-size: 16px;
+            margin-top: 12px;
+            color: var(--primary);
+            letter-spacing: 1px;
+            opacity: 0.8;
+            text-align: center;
+        }
+
+        .overlay-screen input {
+            background: rgba(0, 255, 102, 0.05);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 14px;
+            font-size: 16px;
+            letter-spacing: 2px;
+            font-family: 'Share Tech Mono', monospace;
+            outline: none;
+            text-align: center;
+            margin-top: 12px;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.1);
+            width: 250px;
+            transition: all 0.3s ease;
+        }
+
+        .overlay-screen input:focus {
+            border-color: #fff;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        .overlay-screen button {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 12px 24px;
+            font-size: 15px;
+            letter-spacing: 2px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .overlay-screen button:hover {
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        #error-msg {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 12px;
+            height: 20px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 6px var(--danger-glow);
+        }
+
+        .stats-box {
+            background: rgba(0, 255, 102, 0.03);
+            border: 1px dashed var(--primary);
+            padding: 15px 25px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.1);
+        }
+        .stats-box p {
+            margin: 6px 0;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+        .stats-box span {
+            color: var(--warning);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Tela de Login -->
+    <div id="login-screen" class="overlay-screen">
+        <h1>CYBER-HACK</h1>
+        <p>> ACESSO RESTRITO AO SISTEMA_</p>
+        <input type="text" id="nickname-input" placeholder="NICKNAME" maxlength="12" autocomplete="off">
+        <input type="password" id="password-input" placeholder="SENHA" maxlength="20" autocomplete="off">
+        <button id="start-btn">CONECTAR</button>
+        <div id="error-msg"></div>
+    </div>
+
+    <!-- Tela de Pause -->
+    <div id="pause-screen" class="overlay-screen" style="display: none;">
+        <h1 style="color: var(--primary); text-shadow: 0 0 25px var(--primary-glow);">SISTEMA PAUSADO</h1>
+        <p>> Pressione [ ESC ] ou toque aqui para retomar_</p>
+        <button id="resume-btn" style="margin-top: 30px;">RETOMAR INVASÃO</button>
+    </div>
+
+    <div id="ui">
+        DADOS EXTRAÍDOS: <span id="score">0</span> TB
+    </div>
+
+    <!-- Ranking Lateral -->
+    <div id="ranking">
+        <h3>CONECTADOS</h3>
+        <ul id="ranking-list">
+            <li>Carregando...</li>
+        </ul>
+    </div>
+
+    <button id="audio-btn">INICIAR.AUDIO()</button>
+    <div id="instructions">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar (20 TB)</div>
+    
+    <!-- Controles Mobile -->
+    <div id="mobile-controls">
+        <button id="btn-shoot">ATIRAR</button>
+        <button id="btn-dash">OVERCLOCK</button>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="game-over" class="overlay-screen" style="display: none;">
+        <h1>SISTEMA PURGADO</h1>
+        <div class="stats-box">
+            <p>DADOS EXTRAÍDOS NESTA SESSÃO: <span id="go-score">0</span> TB</p>
+            <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span> TB</p>
+            <p>RECORDE GLOBAL: <span id="go-global-best">0</span> TB</p>
+        </div>
+        <p>> Pressione [ ESPAÇO ] ou toque para reiniciar_</p>
+        <button id="restart-btn" style="margin-top: 20px;">REINICIAR</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyDGBcZWWav3uxZBPalg9GKLolQH_J18L0s",
+            authDomain: "cyber-hack-c0f4d.firebaseapp.com",
+            projectId: "cyber-hack-c0f4d",
+            storageBucket: "cyber-hack-c0f4d.firebasestorage.app",
+            messagingSenderId: "596437872153",
+            appId: "1:596437872153:web:44c704bd8e0ae033d10488",
+            measurementId: "G-MXY6VMK1N2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let myNickname = "";
+        let playerDocRef = null;
+        let personalBest = 0;
+        let globalBest = 0;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const audioBtn = document.getElementById('audio-btn');
+        const gameOverScreen = document.getElementById('game-over');
+        const pauseScreen = document.getElementById('pause-screen');
+        const loginScreen = document.getElementById('login-screen');
+        const nicknameInput = document.getElementById('nickname-input');
+        const passwordInput = document.getElementById('password-input');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const rankingList = document.getElementById('ranking-list');
+        const goScore = document.getElementById('go-score');
+        const goPersonalBest = document.getElementById('go-personal-best');
+        const goGlobalBest = document.getElementById('go-global-best');
+
+        const btnDash = document.getElementById('btn-dash');
+        const btnShoot = document.getElementById('btn-shoot');
+
+        let width, height;
+        let gameState = 'LOGIN'; 
+        
+        let camera = { x: 0, y: 0 };
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let target = { x: 0, y: 0 };
+        let isDashing = false;
+        let projectiles = []; // A VARIÁVEL CORRIGIDA
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function updateMousePosition(e) {
+            if(gameState !== 'PLAYING') return;
+            
+            if (e.touches) {
+                // Filtra os toques para ignorar os botões do mobile
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].target.tagName !== 'BUTTON') {
+                        mouseX = e.touches[i].clientX;
+                        mouseY = e.touches[i].clientY;
+                        break; 
+                    }
+                }
+            } else {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            }
+        }
+        
+        window.addEventListener('mousemove', updateMousePosition);
+        window.addEventListener('touchmove', updateMousePosition, { passive: true });
+
+        function playDeathSound() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.8);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(300, audioCtx.currentTime);
+
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.8);
+            } catch(err) {}
+        }
+
+        startBtn.addEventListener('click', async () => {
+            const nick = nicknameInput.value.trim().toUpperCase();
+            const pass = passwordInput.value.trim();
+
+            if (!nick || nick.length < 3) {
+                errorMsg.innerText = "Nickname precisa de 3+ caracteres!";
+                return;
+            }
+            if (!pass || pass.length < 3) {
+                errorMsg.innerText = "Senha precisa de 3+ caracteres!";
+                return;
+            }
+
+            errorMsg.innerText = "Verificando credenciais...";
+            startBtn.disabled = true;
+
+            try {
+                const docRef = db.collection("players").doc(nick);
+                const doc = await docRef.get();
+
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.password === pass) {
+                        myNickname = nick;
+                        playerDocRef = docRef;
+                        personalBest = data.bestScore || data.score || 0; 
+
+                        loginScreen.style.display = 'none';
+                        gameState = 'PLAYING';
+                        resetGame();
+                        initRealtimeRanking();
+                        startHeartbeat();
+                        toggleAudio(); 
+                    } else {
+                        errorMsg.innerText = "Senha incorreta para este nickname!";
+                        startBtn.disabled = false;
+                    }
+                } else {
+                    myNickname = nick;
+                    playerDocRef = docRef;
+                    personalBest = 0;
+                    
+                    await playerDocRef.set({
+                        nickname: myNickname,
+                        password: pass,
+                        score: 0,
+                        bestScore: 0,
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    loginScreen.style.display = 'none';
+                    gameState = 'PLAYING';
+                    resetGame(); 
+                    initRealtimeRanking();
+                    startHeartbeat();
+                    toggleAudio();
+                }
+            } catch (e) {
+                console.error(e);
+                errorMsg.innerText = "Erro ao conectar com o servidor.";
+                startBtn.disabled = false;
+            }
+        });
+
+        // Controles de Teclado PC
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape') {
+                if (gameState === 'PLAYING') {
+                    gameState = 'PAUSED';
+                    pauseScreen.style.display = 'flex';
+                } else if (gameState === 'PAUSED') {
+                    gameState = 'PLAYING';
+                    pauseScreen.style.display = 'none';
+                }
+            }
+
+            if (gameState !== 'PLAYING' && gameState !== 'GAMEOVER') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault(); 
+                if (gameState === 'GAMEOVER') {
+                    resetGame();
+                } else if (gameState === 'PLAYING') {
+                    isDashing = true;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                isDashing = false;
+            }
+        });
+
+        // Eventos Botões (Telas e Mobile)
+        resumeBtn.addEventListener('click', () => {
+            gameState = 'PLAYING';
+            pauseScreen.style.display = 'none';
+        });
+
+        restartBtn.addEventListener('click', () => {
+            if (gameState === 'GAMEOVER') resetGame();
+        });
+
+        btnDash.addEventListener('touchstart', (e) => { e.preventDefault(); isDashing = true; });
+        btnDash.addEventListener('touchend', (e) => { e.preventDefault(); isDashing = false; });
+        
+        // Mecânica de Tiro Unificada
+        function shootProjectile() {
+            if (gameState === 'PLAYING' && player.score >= 20) {
+                player.score -= 20;
+                scoreElement.innerText = Math.floor(player.score);
+                updateFirebaseScore();
+                
+                const angle = Math.atan2(target.y - player.y, target.x - player.x);
+                projectiles.push({
+                    x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15,
+                    life: 80, text: Math.random() < 0.5 ? '0' : '1'
+                });
+
+                if(player.segments.length > BASE_SEGMENTS) {
+                    player.segments.pop();
+                    player.segments.pop();
+                }
+            }
+        }
+
+        window.addEventListener('mousedown', (e) => {
+            // Ignora o clique se for num botão (impede duplo disparo ou conflitos)
+            if (e.target.tagName === 'BUTTON') return;
+            if (e.button === 0) shootProjectile();
+        });
+
+        btnShoot.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            shootProjectile();
+        });
+
+        let audioCtx = null;
+        let isAudioPlaying = false;
+        let audioInterval = null;
+
+        function toggleAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (isAudioPlaying) {
+                clearInterval(audioInterval);
+                audioBtn.innerText = "INICIAR.AUDIO()";
+                isAudioPlaying = false;
+            } else {
+                audioCtx.resume();
+                startSynthMusic();
+                audioBtn.innerText = "PARAR.AUDIO()";
+                isAudioPlaying = true;
+            }
+        }
+        audioBtn.addEventListener('click', toggleAudio);
+
+        function startSynthMusic() {
+            const notes = [220, 220, 293.66, 329.63, 220, 196, 220, 146.83];
+            let step = 0;
+            audioInterval = setInterval(() => {
+                if (!audioCtx || gameState !== 'PLAYING') return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(500 + Math.sin(step) * 400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+
+                osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+                step++;
+            }, 130);
+        }
+
+        const BASE_SEGMENTS = 12;
+        const BASE_SPEED = 5;
+        const DASH_SPEED = 10;
+        const MAGNET_RADIUS = 90; 
+        const MAGNET_SPEED = 14; 
+
+        const player = { x: 0, y: 0, radius: 10, speed: BASE_SPEED, segments: [], score: 0 };
+
+        function resetGame() {
+            player.x = 0; player.y = 0; player.score = 0;
+            player.speed = BASE_SPEED; player.segments = [];
+            isDashing = false; projectiles = [];
+            
+            for (let i = 0; i < BASE_SEGMENTS; i++) {
+                player.segments.push({ x: player.x, y: player.y });
+            }
+            scoreElement.innerText = "0";
+            updateFirebaseScore(); 
+            
+            foods = [];
+            for (let i = 0; i < MAX_FOOD; i++) {
+                spawnFoodNearCoordinates(player.x, player.y, Math.max(width, height) * 1.2);
+            }
+            
+            bots = []; particles = [];
+            while (bots.length < 16) {
+                bots.push(new Bot());
+            }
+
+            gameState = 'PLAYING';
+            gameOverScreen.style.display = 'none';
+        }
+
+        const MAX_FOOD = 300;
+        let foods = [];
+        let particles = [];
+        let colorOffset = 0;
+
+        const codeSymbols = [
+            { char: '0', color: '#88ccaa' }, { char: '1', color: '#88ccaa' },
+            { char: '{', color: '#ffcc00' }, { char: '}', color: '#ffcc00' },
+            { char: '(', color: '#cccccc' }, { char: ')', color: '#cccccc' },
+            { char: ';', color: '#cccccc' }, { char: '=', color: '#cccccc' },
+            { char: '+', color: '#cccccc' }, { char: '>', color: '#cccccc' },
+            { char: 'if', color: '#dda0dd' }, { char: 'let', color: '#61afef' },
+            { char: 'fn', color: '#61afef' }, { char: '=>', color: '#cccccc' },
+            { char: '[]', color: '#ffcc00' }
+        ];
+
+        function spawnFood(x, y, dropped = false) {
+            if (x === undefined || y === undefined) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = (Math.random() * Math.max(width, height) * 1.5) + 100;
+                x = player.x + Math.cos(angle) * dist;
+                y = player.y + Math.sin(angle) * dist;
+            }
+            const symbolObj = codeSymbols[Math.floor(Math.random() * codeSymbols.length)];
+            foods.push({ 
+                x: x, y: y, baseX: x, baseY: y, 
+                radius: dropped ? 6 : 8, 
+                char: symbolObj.char, 
+                color: symbolObj.color,
+                floatSpeed: Math.random() * 0.05 + 0.02,
+                floatOffset: Math.random() * Math.PI * 2
+            });
+        }
+
+        function spawnFoodNearCoordinates(centerX, centerY, maxRadius) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * maxRadius;
+            const x = centerX + Math.cos(angle) * dist;
+            const y = centerY + Math.sin(angle) * dist;
+            spawnFood(x, y);
+        }
+
+        function spawnParticles(x, y, color, amount = 12) {
+            for (let i = 0; i < amount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1, color: color });
+            }
+        }
+
+        const MAX_BOTS = 16;
+        let bots = [];
+        let genePool = [];
+        let generationCount = 1;
+        let maxFitnessEver = 0;
+
+        class Bot {
+            constructor(genome) {
+                const spawnAngle = Math.random() * Math.PI * 2;
+                const spawnDist = width * 0.7 + Math.random() * (width * 0.6);
+
+                this.x = player.x + Math.cos(spawnAngle) * spawnDist;
+                this.y = player.y + Math.sin(spawnAngle) * spawnDist;
+                
+                this.radius = 10;
+                this.speed = 4.0 + Math.random() * 0.5;
+                this.baseSpeed = this.speed;
+                this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+
+                this.segments = [];
+                for (let i = 0; i < 10; i++) { this.segments.push({ x: this.x, y: this.y }); }
+                
+                this.genome = genome || [
+                    (Math.random() * 2) + 1.5,
+                    Math.random() * 2,         
+                    (Math.random() - 0.5),     
+                    Math.random(),             
+                    (Math.random() - 0.5),     
+                    (Math.random() - 0.5),     
+                    Math.random(),             
+                    Math.random()              
+                ];
+                
+                this.score = 0;
+                this.lifespan = 0;
+                this.dead = false;
+                this.isDashing = false;
+            }
+
+            getFitness() { return Math.floor(this.score * 15 + this.lifespan * 0.15 + this.segments.length * 20); }
+
+            update() {
+                if (this.dead) return;
+                this.lifespan++;
+
+                if (Math.hypot(player.x - this.x, player.y - this.y) > width * 1.5) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = width * 0.8 + Math.random() * (width * 0.4);
+                    
+                    this.x = player.x + Math.cos(angle) * dist;
+                    this.y = player.y + Math.sin(angle) * dist;
+                    
+                    for (let i = 0; i < this.segments.length; i++) {
+                        this.segments[i].x = this.x;
+                        this.segments[i].y = this.y;
+                    }
+                }
+
+                let nearestFood = null;
+                let minDist = 99999;
+                for (let i = 0; i < foods.length; i++) {
+                    const f = foods[i];
+                    const d = Math.hypot(f.x - this.x, f.y - this.y);
+                    if (d < minDist) { minDist = d; nearestFood = f; }
+                }
+
+                let foodAngle = nearestFood ? Math.atan2(nearestFood.y - this.y, nearestFood.x - this.x) - this.angle : 0;
+                let playerAngle = Math.atan2(player.y - this.y, player.x - this.x) - this.angle;
+                let playerDist = Math.hypot(player.x - this.x, player.y - this.y);
+
+                foodAngle = Math.atan2(Math.sin(foodAngle), Math.cos(foodAngle));
+                playerAngle = Math.atan2(Math.sin(playerAngle), Math.cos(playerAngle));
+
+                let orbitAngle = playerAngle + (Math.PI / 2) * (this.genome[4] >= 0 ? 1 : -1);
+
+                const steer = (foodAngle * this.genome[0]) + ((1 / (minDist + 1)) * this.genome[1]) + 
+                            (playerAngle * (this.genome[2] + 0.5)) + ((1 / (playerDist + 1)) * this.genome[3]) +
+                            (orbitAngle * (this.genome[4] || 1)) + (Math.sin(this.angle) * (this.genome[5] || 0.2));
+
+                this.angle += Math.max(-0.25, Math.min(0.25, steer));
+
+                let totalMassPoints = this.score + (this.segments.length - 10) * 10;
+                let dashThreshold = 20 + Math.abs(this.genome[6] || 0) * 15;
+                let dashDesire = this.genome[7] || 0;
+
+                if (this.isDashing) {
+                    this.speed = DASH_SPEED;
+                    this.score -= 0.6;
+                    if (this.score < 0) this.score = 0;
+                    let expectedSegments = 10 + Math.floor(this.score / 10);
+                    if (this.segments.length > expectedSegments && this.segments.length > 10) {
+                        let tail = this.segments.pop();
+                        if (Math.random() < 0.4) spawnFood(tail.x, tail.y, true);
+                    }
+                    if (this.score <= 5 || (playerDist > 500 && Math.random() < 0.05)) this.isDashing = false;
+                } else {
+                    this.speed = this.baseSpeed;
+                    if (totalMassPoints >= dashThreshold && (dashDesire > 0 || playerDist < 350) && Math.random() < 0.05) {
+                        this.isDashing = true;
+                    }
+                }
+
+                this.radius = 10 + Math.min(15, Math.floor(this.score / 50));
+
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+
+                let prevX = this.x, prevY = this.y;
+                const segmentSpacing = this.isDashing ? 14 : 8;
+                for (let i = 0; i < this.segments.length; i++) {
+                    const seg = this.segments[i];
+                    const sdist = Math.hypot(prevX - seg.x, prevY - seg.y);
+                    if (sdist > segmentSpacing) {
+                        seg.x += ((prevX - seg.x) / sdist) * (sdist - segmentSpacing) * 0.6;
+                        seg.y += ((prevY - seg.y) / sdist) * (sdist - segmentSpacing) * 0.6;
+                    }
+                    prevX = seg.x; prevY = seg.y;
+                }
+
+                for (let i = foods.length - 1; i >= 0; i--) {
+                    const f = foods[i];
+                    const distToBot = Math.hypot(this.x - f.x, this.y - f.y);
+                    if (distToBot < this.radius + f.radius) {
+                        foods.splice(i, 1);
+                        this.score += 30; 
+                        
+                        this.segments.push({ x: this.segments[this.segments.length - 1].x, y: this.segments[this.segments.length - 1].y });
+                        if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width, height) * 1.2);
+                    } else if (distToBot < MAGNET_RADIUS) {
+                        const angle = Math.atan2(this.y - f.y, this.x - f.x);
+                        f.x += Math.cos(angle) * MAGNET_SPEED;
+                        f.y += Math.sin(angle) * MAGNET_SPEED;
+                    }
+                }
+            }
+
+            die(natural = true) {
+                if (this.dead) return;
+                this.dead = true;
+                spawnParticles(this.x, this.y, '#ff3355', 20);
+
+                if (natural) {
+                    this.segments.forEach(s => spawnFood(s.x, s.y, true));
+                    const fitness = this.getFitness();
+                    if (fitness > maxFitnessEver) maxFitnessEver = fitness;
+                    genePool.push({ genome: this.genome, fitness });
+                    
+                    if (genePool.length > 40) {
+                        genePool.sort((a, b) => b.fitness - a.fitness);
+                        genePool = genePool.slice(0, 20);
+                    }
+                }
+            }
+        }
+
+        function createNextGenGenome() {
+            if (genePool.length < 2) return null;
+            genePool.sort((a, b) => b.fitness - a.fitness);
+            const parentA = genePool[Math.floor(Math.random() * Math.min(5, genePool.length))].genome;
+            const parentB = genePool[Math.floor(Math.random() * Math.min(5, genePool.length))].genome;
+            const childGenome = parentA.map((gene, i) => Math.random() < 0.5 ? gene : parentB[i]);
+            for (let i = 0; i < childGenome.length; i++) {
+                if (Math.random() < 0.3) childGenome[i] += (Math.random() - 0.5) * 0.5;
+            }
+            generationCount++;
+            return childGenome;
+        }
+
+        function manageBots() {
+            bots = bots.filter(b => !b.dead);
+            while (bots.length < MAX_BOTS) {
+                bots.push(new Bot(createNextGenGenome()));
+            }
+        }
+
+        function triggerGameOver() {
+            if(gameState === 'GAMEOVER') return;
+            gameState = 'GAMEOVER';
+            playDeathSound();
+
+            if (player.score > personalBest) {
+                personalBest = Math.floor(player.score);
+            }
+
+            goScore.innerText = Math.floor(player.score);
+            goPersonalBest.innerText = personalBest;
+            goGlobalBest.innerText = Math.max(globalBest, personalBest);
+
+            gameOverScreen.style.display = 'flex';
+            updateFirebaseScore(true); 
+        }
+
+        function updateFirebaseScore(isGameOver = false) {
+            if (!playerDocRef) return;
+            
+            let scoreToSave = isGameOver ? 0 : Math.floor(player.score);
+
+            playerDocRef.set({
+                nickname: myNickname,
+                score: scoreToSave,
+                bestScore: personalBest,
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(() => {});
+        }
+
+        let scoreUpdateTimer = 0;
+
+        function update() {
+            target.x = camera.x + mouseX;
+            target.y = camera.y + mouseY;
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                
+                let hitBot = false;
+                for (let j = 0; j < bots.length; j++) {
+                    let bot = bots[j];
+                    if(bot.dead) continue;
+                    if (Math.hypot(bot.x - p.x, bot.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); break; }
+                    let hitSeg = false;
+                    for (let k = 0; k < bot.segments.length; k++) {
+                        let seg = bot.segments[k];
+                        if (Math.hypot(seg.x - p.x, seg.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); hitSeg = true; break; }
+                    }
+                    if(hitSeg) break;
+                }
+
+                if (hitBot || p.life <= 0) {
+                    spawnParticles(p.x, p.y, '#ffcc00', 5);
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            if (isDashing && player.score > 0) {
+                player.speed = DASH_SPEED;
+                player.score -= 0.6;
+                if (player.score < 0) player.score = 0;
+                scoreElement.innerText = Math.floor(player.score);
+
+                let expectedSegments = BASE_SEGMENTS + Math.floor(player.score / 10);
+                if (player.segments.length > expectedSegments && player.segments.length > BASE_SEGMENTS) {
+                    let tail = player.segments.pop();
+                    if (Math.random() < 0.4) spawnFood(tail.x, tail.y, true);
+                }
+            } else {
+                player.speed = BASE_SPEED;
+            }
+
+            player.radius = 10 + Math.min(20, Math.floor(player.score / 50));
+
+            const dist = Math.hypot(target.x - player.x, target.y - player.y);
+            if (dist > 5) {
+                player.x += ((target.x - player.x) / dist) * player.speed;
+                player.y += ((target.y - player.y) / dist) * player.speed;
+            }
+
+            camera.x = player.x - width / 2;
+            camera.y = player.y - height / 2;
+
+            let prevX = player.x, prevY = player.y;
+            const segmentSpacing = isDashing ? 14 : 10;
+            for (let i = 0; i < player.segments.length; i++) {
+                const seg = player.segments[i];
+                const sdist = Math.hypot(prevX - seg.x, prevY - seg.y);
+                if (sdist > segmentSpacing) {
+                    seg.x += ((prevX - seg.x) / sdist) * (sdist - segmentSpacing) * 0.6;
+                    seg.y += ((prevY - seg.y) / sdist) * (sdist - segmentSpacing) * 0.6;
+                }
+                prevX = seg.x; prevY = seg.y;
+            }
+
+            for (let i = 0; i < foods.length; i++) {
+                let f = foods[i];
+                f.floatOffset += f.floatSpeed;
+                f.x = f.baseX + Math.sin(f.floatOffset) * 3;
+                f.y = f.baseY + Math.cos(f.floatOffset * 0.8) * 3;
+            }
+
+            for (let i = foods.length - 1; i >= 0; i--) {
+                const f = foods[i];
+                const distToPlayer = Math.hypot(player.x - f.x, player.y - f.y);
+
+                if (distToPlayer > width * 1.5) {
+                    foods.splice(i, 1);
+                    spawnFoodNearCoordinates(player.x, player.y, Math.max(width, height) * 1.2);
+                    continue;
+                }
+
+                if (distToPlayer < player.radius + f.radius) {
+                    spawnParticles(f.x, f.y, '#00ffff', 3);
+                    foods.splice(i, 1);
+                    player.score += 10;
+                    scoreElement.innerText = Math.floor(player.score);
+                    
+                    let lastSeg = player.segments[player.segments.length - 1];
+                    player.segments.push({ x: lastSeg.x, y: lastSeg.y });
+                    if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width, height) * 1.2);
+                } else if (distToPlayer < MAGNET_RADIUS) {
+                    const angle = Math.atan2(player.y - f.y, player.x - f.x);
+                    f.x += Math.cos(angle) * MAGNET_SPEED;
+                    f.y += Math.sin(angle) * MAGNET_SPEED;
+                    f.baseX = f.x;
+                    f.baseY = f.y;
+                }
+            }
+
+            scoreUpdateTimer++;
+            if (scoreUpdateTimer > 30) {
+                updateFirebaseScore();
+                scoreUpdateTimer = 0;
+            }
+
+            manageBots();
+            
+            for (let i = 0; i < bots.length; i++) {
+                let bot = bots[i];
+                if (bot.dead) continue;
+                bot.update();
+
+                let botHitPlayerBody = false;
+                let playerHitBotBody = false;
+
+                for (let j = 0; j < player.segments.length; j++) {
+                    let pSeg = player.segments[j];
+                    if (Math.hypot(bot.x - pSeg.x, bot.y - pSeg.y) < bot.radius + player.radius * 0.8) {
+                        botHitPlayerBody = true;
+                        break;
+                    }
+                }
+
+                for (let j = 0; j < bot.segments.length; j++) {
+                    let bSeg = bot.segments[j];
+                    if (Math.hypot(player.x - bSeg.x, player.y - bSeg.y) < player.radius + bot.radius * 0.8) {
+                        playerHitBotBody = true;
+                        break;
+                    }
+                }
+
+                let headToHead = Math.hypot(player.x - bot.x, player.y - bot.y) < player.radius + bot.radius;
+
+                if (botHitPlayerBody || headToHead) {
+                    bot.die();
+                }
+
+                if ((playerHitBotBody || headToHead) && gameState === 'PLAYING') {
+                    spawnParticles(player.x, player.y, '#ff3355', 30);
+                    triggerGameOver();
+                    break; 
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            colorOffset += 2; 
+        }
+
+        function draw() {
+            ctx.fillStyle = '#010503'; 
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            ctx.strokeStyle = 'rgba(0, 255, 102, 0.04)';
+            ctx.lineWidth = 1;
+            const gridSize = 80;
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+
+            ctx.beginPath();
+            for (let x = startX - gridSize; x < startX + width + gridSize; x += gridSize) {
+                ctx.moveTo(x, startY - gridSize); ctx.lineTo(x, startY + height + gridSize * 2);
+            }
+            for (let y = startY - gridSize; y < startY + height + gridSize; y += gridSize) {
+                ctx.moveTo(startX - gridSize, y); ctx.lineTo(startX + width + gridSize * 2, y);
+            }
+            ctx.stroke();
+
+            const pulseGlow = 8 + Math.sin(Date.now() * 0.008) * 4;
+            for (let i = 0; i < foods.length; i++) {
+                let f = foods[i];
+                ctx.save();
+                ctx.font = '14px "Share Tech Mono", monospace';
+                ctx.fillStyle = f.color;
+                ctx.shadowBlur = pulseGlow;
+                ctx.shadowColor = f.color;
+                ctx.fillText(f.char, f.x - 6, f.y + 5);
+                ctx.restore();
+            }
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 3, 3);
+                ctx.globalAlpha = 1.0;
+            }
+
+            for (let i = 0; i < projectiles.length; i++) {
+                let p = projectiles[i];
+                ctx.font = 'bold 16px "Share Tech Mono", monospace';
+                ctx.fillStyle = '#ffcc00';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#ffcc00';
+                ctx.fillText(p.text, p.x - 5, p.y + 5);
+                ctx.shadowBlur = 0;
+            }
+
+            for (let i = 0; i < bots.length; i++) {
+                let bot = bots[i];
+                for (let j = bot.segments.length - 1; j >= 0; j--) {
+                    const seg = bot.segments[j];
+                    ctx.fillStyle = bot.isDashing ? '#550011' : '#330011';
+                    ctx.strokeStyle = bot.isDashing ? '#ff5577' : '#ff3355';
+                    ctx.lineWidth = 2;
+                    let size = bot.radius * (1 - (j / bot.segments.length) * 0.3);
+                    ctx.fillRect(seg.x - size, seg.y - size, size * 2, size * 2);
+                    ctx.strokeRect(seg.x - size, seg.y - size, size * 2, size * 2);
+                }
+            }
+
+            if (gameState === 'PLAYING' || gameState === 'GAMEOVER' || gameState === 'PAUSED') {
+                for (let i = player.segments.length - 1; i >= 0; i--) {
+                    const seg = player.segments[i];
+                    const size = player.radius * (1 - (i / player.segments.length) * 0.4);
+                    
+                    ctx.fillStyle = gameState === 'GAMEOVER' ? '#222' : '#002211';
+                    ctx.strokeStyle = gameState === 'GAMEOVER' ? '#555' : '#00ff66';
+                    ctx.lineWidth = 2;
+                    if(isDashing) ctx.strokeStyle = '#ffcc00';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(seg.x, seg.y - size); ctx.lineTo(seg.x + size, seg.y);
+                    ctx.lineTo(seg.x, seg.y + size); ctx.lineTo(seg.x - size, seg.y);
+                    ctx.closePath();
+                    ctx.fill(); ctx.stroke();
+                }
+                
+                ctx.fillStyle = gameState === 'GAMEOVER' ? '#555' : '#00ff66';
+                ctx.shadowBlur = 15; ctx.shadowColor = '#00ff66';
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y - player.radius - 2); ctx.lineTo(player.x + player.radius + 2, player.y);
+                ctx.lineTo(player.x, player.y + player.radius + 2); ctx.lineTo(player.x - player.radius - 2, player.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.restore();
+        }
+
+        function initRealtimeRanking() {
+            db.collection("players")
+              .orderBy("bestScore", "desc")
+              .limit(30)
+              .onSnapshot((snapshot) => {
+                  
+                  let playersData = [];
+                  
+                  snapshot.forEach((doc) => {
+                      const data = doc.data();
+                      const currentScoreVal = Math.floor(data.score || 0);
+                      const bestScoreVal = Math.floor(data.bestScore || 0);
+
+                      let isOnline = false;
+                      if (data.lastSeen) {
+                          const dateObj = data.lastSeen.toDate ? data.lastSeen.toDate() : new Date();
+                          isOnline = (Date.now() - dateObj.getTime()) < 20000;
+                      }
+
+                      if (data.nickname === myNickname && gameState === 'PLAYING') isOnline = true;
+
+                      const displayScore = isOnline ? currentScoreVal : bestScoreVal;
+
+                      if (bestScoreVal > globalBest) globalBest = bestScoreVal;
+                      if (currentScoreVal > globalBest) globalBest = currentScoreVal;
+
+                      playersData.push({
+                          nickname: data.nickname,
+                          score: displayScore,
+                          isOnline: isOnline
+                      });
+                  });
+
+                  playersData.sort((a, b) => b.score - a.score);
+                  playersData = playersData.slice(0, 8);
+
+                  rankingList.innerHTML = "";
+                  playersData.forEach((p) => {
+                      const li = document.createElement('li');
+                      
+                      const statusTag = p.isOnline 
+                          ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' 
+                          : '<span style="color:#666; font-size:10px;">[OFF]</span>';
+
+                      li.innerHTML = `<span>> ${p.nickname} ${statusTag}</span> <span>${p.score} TB</span>`;
+                      
+                      if (p.nickname === myNickname) {
+                          li.style.color = "#ffcc00";
+                      }
+                      rankingList.appendChild(li);
+                  });
+              });
+        }
+
+        function startHeartbeat() {
+            setInterval(() => {
+                if (gameState === 'PLAYING' && playerDocRef) {
+                    playerDocRef.update({
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(() => {});
+                }
+            }, 10000);
+        }
+
+        function loop() {
+            if (gameState === 'PLAYING') {
+                update();
+            }
+            draw(); 
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
