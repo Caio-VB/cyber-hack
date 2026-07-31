@@ -366,9 +366,9 @@
     <div id="game-over" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
-            <p>DADOS EXTRAÍDOS: <span id="go-score">0</span></p>
-            <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span></p>
-            <p>RECORDE GLOBAL: <span id="go-global-best">0</span></p>
+            <p>DADOS EXTRAÍDOS: <span id="go-score">0</span> TB</p>
+            <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span> TB</p>
+            <p>RECORDE GLOBAL: <span id="go-global-best">0</span> TB</p>
         </div>
         <button id="restart-btn">REINICIAR INVASÃO</button>
         <div class="mobile-ranking-container">
@@ -497,7 +497,8 @@
         const MAGNET_RADIUS = isMobile ? 60 : 90; 
         const GRID_SIZE = 50;        
         const MAX_FOOD = isMobile ? 2500 : 300;       
-        const MAX_BOTS = isMobile ? 20 : 16;         
+        // Quantidade de adversários reduzida no mobile para evitar sobrecarga e manter o ritmo fluido
+        const MAX_BOTS = isMobile ? 12 : 16;         
 
         const player = { x: 0, y: 0, radius: isMobile ? 8 : 10, speed: BASE_SPEED, segments: [], score: 0 };
         let camera = { x: 0, y: 0 };
@@ -509,7 +510,7 @@
         let tapTimes = [];
         const DASH_TAP_WINDOW = 350; 
         let projectiles = [];
-        let autoShootTimer = 0; // Temporizador para o tiro automático no mobile
+        let autoShootTimer = 0; // Temporizador para o tiro automático no mobile (a cada 0.5s / 30 frames)
 
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -518,7 +519,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile corrigidos para que o jogador siga o toque na tela
+        // Controles Mobile corrigidos para movimento contínuo/arrasto e toque livre
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -899,28 +900,31 @@
         let updateTimer = 0;
         function update() {
             if (isMobile) {
-                // Sistema de tiro automático moderado para mobile (dispara a cada ~60 frames / 1 segundo se tiver score suficiente)
+                // Tiro automático a cada meio segundo (30 frames) se houver pontuação suficiente
                 autoShootTimer++;
-                if (autoShootTimer > 60 && player.score >= 20) {
+                if (autoShootTimer >= 30 && player.score >= 20) {
                     autoShootTimer = 0;
                     player.score -= 20;
                     document.getElementById('score').innerText = Math.floor(player.score);
                     updateFirebaseScore();
                     
-                    // Dispara em direção ao bot mais próximo ou em frente se não houver bots visíveis
                     let nearestBot = null;
-                    let minB算出Dist = 400;
+                    let minBotDist = 500;
                     for (let b of bots) {
                         let d = Math.hypot(b.x - player.x, b.y - player.y);
-                        if (d < minB算出Dist) { minB算出Dist = d; nearestBot = b; }
+                        if (d < minBotDist) { minBotDist = d; nearestBot = b; }
                     }
                     
-                    const shootAngle = nearestBot ? Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x) : Math.atan2(target.y - player.y, target.x - player.x);
+                    const shootAngle = nearestBot 
+                        ? Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x) 
+                        : Math.atan2(target.y - player.y, target.x - player.x);
+
                     projectiles.push({
                         x: player.x, y: player.y,
                         vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15,
                         life: 80, text: Math.random() < 0.5 ? '0' : '1'
                     });
+
                     if (player.segments.length > BASE_SEGMENTS) {
                         player.segments.pop();
                         player.segments.pop();
@@ -1130,6 +1134,7 @@
                 ctx.fill();
             }
 
+,
             ctx.restore();
         }
 
