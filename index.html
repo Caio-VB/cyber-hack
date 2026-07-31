@@ -271,6 +271,83 @@
             color: var(--warning);
             font-weight: bold;
         }
+        /* Responsividade para Celulares (Telas com largura menor que 768px) */
+        @media (max-width: 768px) {
+            /* Ajuste do Placar (Canto Superior Esquerdo) */
+            #ui {
+                top: 10px;
+                left: 10px;
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+        
+            /* Ajuste do Ranking (Canto Superior Direito) */
+            #ranking {
+                top: 10px;
+                right: 10px;
+                width: 140px; /* Reduzido para não colidir com o placar */
+                padding: 8px;
+            }
+            #ranking h3 {
+                font-size: 11px;
+                margin: 0 0 6px 0;
+            }
+            #ranking-list {
+                font-size: 10px;
+                max-height: 100px; /* Menos altura para poupar espaço vertical */
+            }
+        
+            /* Move o botão de Áudio para debaixo do Placar, liberando o rodapé */
+            #audio-btn {
+                top: 45px;
+                left: 10px;
+                bottom: auto;
+                padding: 6px 10px;
+                font-size: 10px;
+            }
+        
+            /* Reorganização dos Botões de Ação (Estilo Arcade / Joystick) */
+            #mobile-controls {
+                bottom: 20px;
+                right: 20px;
+                left: 20px; /* Estica o container de ponta a ponta */
+                justify-content: space-between; /* Um botão pra cada lado */
+                width: auto;
+                pointer-events: none; /* Permite que toques na área vazia guiem o vírus */
+            }
+            
+            #mobile-controls button {
+                pointer-events: auto; /* Reativa o toque apenas na área visível dos botões */
+                width: 80px;
+                height: 80px;
+                border-radius: 50%; /* Formato circular para polegares */
+                padding: 10px;
+                font-size: 10px;
+                background: rgba(0, 255, 102, 0.15);
+                backdrop-filter: blur(4px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                line-height: 1.2;
+            }
+        
+            /* Ajustes para evitar overflow nas Telas de Login e Game Over */
+            .overlay-screen h1 {
+                font-size: 32px;
+            }
+            .overlay-screen input {
+                width: 80%;
+                max-width: 250px;
+            }
+            .stats-box {
+                width: 85%;
+                padding: 10px;
+            }
+            .stats-box p {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
