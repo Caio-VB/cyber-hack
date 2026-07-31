@@ -420,7 +420,6 @@
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
 
-        // Som de comida removido ('eat'), mantendo apenas o som de morte ('die')
         function playSound(type) {
             if (!soundEnabled || !audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -446,35 +445,38 @@
             }
         }
 
-        // Música de fundo sintetizada habilitada para ambas as plataformas
+        // Música de fundo sintetizada unificada e com reinício automático ao ressuscitar
         let isAudioPlaying = false;
         let audioInterval = null;
-        function toggleSynthMusic() {
-            if (!audioCtx) return;
-            if (isAudioPlaying) {
+        function startSynthMusic() {
+            if (!audioCtx || isAudioPlaying || !soundEnabled) return;
+            audioCtx.resume();
+            const notes = [220, 220, 293.66, 329.63, 220, 196, 220, 146.83];
+            let step = 0;
+            audioInterval = setInterval(() => {
+                if (!audioCtx || gameState !== 'PLAYING' || !soundEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(500 + Math.sin(step) * 400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+                step++;
+            }, 130);
+            isAudioPlaying = true;
+        }
+
+        function stopSynthMusic() {
+            if (audioInterval) {
                 clearInterval(audioInterval);
-                isAudioPlaying = false;
-            } else {
-                audioCtx.resume();
-                const notes = [220, 220, 293.66, 329.63, 220, 196, 220, 146.83];
-                let step = 0;
-                audioInterval = setInterval(() => {
-                    if (!audioCtx || gameState !== 'PLAYING' || !soundEnabled) return;
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    const filter = audioCtx.createBiquadFilter();
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(500 + Math.sin(step) * 400, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-                    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-                    step++;
-                }, 130);
-                isAudioPlaying = true;
+                audioInterval = null;
             }
+            isAudioPlaying = false;
         }
 
         const canvas = document.getElementById('gameCanvas');
@@ -507,7 +509,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile
+        // Controles Mobile com touchstart/touchmove corrigidos
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -638,12 +640,14 @@
             document.getElementById('pause-screen').style.display = 'none';
             document.getElementById('pause-btn').style.display = 'flex';
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (soundEnabled && !isAudioPlaying) startSynthMusic();
         });
 
         document.getElementById('sound-btn').addEventListener('click', (e) => {
             soundEnabled = !soundEnabled;
             e.target.innerText = soundEnabled ? "SOM: LIGADO" : "SOM: DESLIGADO";
-            if(soundEnabled && !isAudioPlaying) toggleSynthMusic();
+            if(soundEnabled) startSynthMusic();
+            else stopSynthMusic();
         });
 
         document.getElementById('quit-btn').addEventListener('click', () => {
@@ -655,8 +659,8 @@
         audioBtnPc.addEventListener('click', () => {
             if (!audioCtx) return;
             soundEnabled = !soundEnabled;
-            if(!isAudioPlaying && soundEnabled) toggleSynthMusic();
-            else if(isAudioPlaying && !soundEnabled) toggleSynthMusic();
+            if(soundEnabled) startSynthMusic();
+            else stopSynthMusic();
             audioBtnPc.innerText = soundEnabled ? "PARAR.AUDIO()" : "INICIAR.AUDIO()";
         });
 
@@ -670,15 +674,14 @@
                 document.getElementById('hud-top').style.display = 'flex';
                 document.getElementById('hud-bottom').style.display = 'block';
                 document.getElementById('pause-btn').style.display = 'flex';
-                setTimeout(() => { if (!isAudioPlaying) toggleSynthMusic(); }, 500);
             } else {
                 document.getElementById('ui-pc').style.display = 'block';
                 document.getElementById('ranking-pc').style.display = 'block';
                 document.getElementById('audio-btn-pc').style.display = 'block';
                 document.getElementById('instructions-pc').style.display = 'block';
-                toggleSynthMusic();
             }
 
+            if (soundEnabled) startSynthMusic();
             resetGame();
             initRealtimeRanking();
             setInterval(heartbeat, 10000);
@@ -723,18 +726,17 @@
                 
                 this.score = 0;
                 this.lifespan = 0;
-                this.damageDealtToPlayer = 0; // Nova métrica de agressividade contra o jogador
+                this.damageDealtToPlayer = 0;
                 this.dead = false;
                 this.isDashing = false;
             }
 
-            // Fitness agora bonifica fortemente bots que perseguem e atacam/causam impacto no jogador
             getFitness() { 
                 return Math.floor(
                     this.score * 10 + 
                     this.lifespan * 0.1 + 
                     this.segments.length * 15 + 
-                    (this.damageDealtToPlayer * 500) // Recompensa massiva por agressividade ao player
+                    (this.damageDealtToPlayer * 500)
                 ); 
             }
 
@@ -850,6 +852,8 @@
             gameState = 'PLAYING';
             document.getElementById('game-over').style.display = 'none';
             document.getElementById('game-over-pc').style.display = 'none';
+
+            if (soundEnabled && !isAudioPlaying) startSynthMusic();
         }
 
         function spawnFood(x, y, isDrop = false) {
@@ -881,7 +885,10 @@
 
         let updateTimer = 0;
         function update() {
-            if (!isMobile) {
+            if (isMobile) {
+                target.x = camera.x + width / 2;
+                target.y = camera.y + height / 2;
+            } else {
                 target.x = camera.x + mouseX;
                 target.y = camera.y + mouseY;
 
@@ -989,7 +996,7 @@
                 if (!bot.dead && gameState === 'PLAYING') {
                     for (let seg of bot.segments) {
                         if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + bot.radius*0.7) {
-                            bot.damageDealtToPlayer++; // Incrementa pontuação de agressividade genética
+                            bot.damageDealtToPlayer++;
                             triggerGameOver(); break;
                         }
                     }
@@ -1100,7 +1107,7 @@
             playSound('die');
 
             if (isMobile) document.getElementById('pause-btn').style.display = 'none';
-            if (isAudioPlaying) toggleSynthMusic();
+            stopSynthMusic();
 
             if (player.score > personalBest) personalBest = Math.floor(player.score);
             
@@ -1141,7 +1148,6 @@
                 snap.forEach(doc => {
                     const d = doc.data();
                     
-                    // Verificação precisa do status online baseada na timestamp atual e na gravada no Firestore
                     let on = false;
                     if(d.lastSeen && d.lastSeen.toMillis) {
                         on = (Date.now() - d.lastSeen.toMillis()) < 20000;
