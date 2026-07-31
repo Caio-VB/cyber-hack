@@ -16,7 +16,7 @@
             --primary: #00ff66;
             --primary-glow: rgba(0, 255, 102, 0.4);
             --bg-dark: #010503;
-            --panel-bg: rgba(2, 15, 8, 0.9);
+            --panel-bg: rgba(2, 15, 8, 0.95);
             --danger: #ff3355;
             --warning: #ffcc00;
         }
@@ -42,14 +42,14 @@
             height: 100vh;
         }
 
-        /* UI Mobile */
+        /* UI Mobile (Ranking removido da tela principal, mantido apenas o Score) */
         #hud-top {
             position: absolute;
             top: env(safe-area-inset-top, 10px);
             left: 10px;
             right: 60px;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: flex-start;
             pointer-events: none;
             z-index: 10;
@@ -68,17 +68,20 @@
             height: max-content;
         }
 
-        #ranking-panel {
+        /* Ranking Mobile Integrado em Overlays (Pause/Game Over) */
+        .mobile-ranking-container {
+            width: 100%;
+            max-width: 280px;
             background: var(--panel-bg);
             border: 1px solid var(--primary);
             padding: 8px;
-            width: 140px;
-            font-size: 10px;
+            font-size: 11px;
             box-shadow: 0 0 10px var(--primary-glow);
-            border-radius: 0;
+            margin-top: 15px;
+            box-sizing: border-box;
         }
 
-        #ranking-panel h3 {
+        .mobile-ranking-container h3 {
             margin: 0 0 5px 0;
             font-size: 12px;
             text-align: center;
@@ -86,19 +89,19 @@
             padding-bottom: 4px;
         }
 
-        #ranking-list {
+        #ranking-list-mobile-overlay {
             list-style: none;
             padding: 0;
             margin: 0;
+            max-height: 100px;
+            overflow-y: auto;
         }
 
-        #ranking-list li {
+        #ranking-list-mobile-overlay li {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         #hud-bottom {
@@ -249,12 +252,13 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
+            overflow-y: auto;
         }
 
         .overlay-screen h1 {
-            font-size: 36px;
+            font-size: 32px;
             color: var(--danger);
             margin: 0 0 10px 0;
             text-align: center;
@@ -264,7 +268,7 @@
         .overlay-screen p {
             font-size: 14px;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         input {
@@ -273,12 +277,12 @@
             background: rgba(0, 255, 102, 0.05);
             border: 1px solid var(--primary);
             color: var(--primary);
-            padding: 15px;
+            padding: 12px;
             font-size: 18px;
             font-family: 'Share Tech Mono', monospace;
             outline: none;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             -webkit-appearance: none;
             border-radius: 0;
         }
@@ -294,10 +298,10 @@
             background: rgba(0, 255, 102, 0.15);
             border: 1px solid var(--primary);
             color: var(--primary);
-            padding: 16px;
-            font-size: 18px;
+            padding: 14px;
+            font-size: 16px;
             font-family: 'Share Tech Mono', monospace;
-            margin-top: 10px;
+            margin-top: 8px;
             font-weight: bold;
             border-radius: 0;
             cursor: pointer;
@@ -311,19 +315,19 @@
         #error-msg {
             color: var(--danger);
             font-size: 12px;
-            margin-top: 15px;
+            margin-top: 10px;
             min-height: 15px;
         }
 
         .stats-box {
             background: rgba(0, 255, 102, 0.03);
             border: 1px dashed var(--primary);
-            padding: 15px;
-            margin: 20px 0;
+            padding: 12px;
+            margin: 10px 0;
             width: 100%;
             max-width: 280px;
             text-align: left;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .stats-box span { color: var(--warning); float: right; }
@@ -344,10 +348,6 @@
     <button id="pause-btn" style="display: none;">❚❚</button>
     <div id="hud-top" style="display: none;">
         <div id="score-panel"><span id="score">0</span> TB</div>
-        <div id="ranking-panel">
-            <h3>TOP HACKERS</h3>
-            <ul id="ranking-list"><li>Carregando...</li></ul>
-        </div>
     </div>
     <div id="hud-bottom" style="display: none;">
         <div class="instructions">ARRASTAR = Guiar | 2 TOQUES = Dash</div>
@@ -366,9 +366,13 @@
     <div id="game-over" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
-            <p>DADOS EXTRAÍDOS: <span id="go-score">0</span></p>
-            <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span></p>
-            <p>RECORDE GLOBAL DO JOGO: <span id="go-global-best">0</span></p>
+            <p>DADOS EXTRAÍDOS: <span id="go-score">0</span> TB</p>
+            <p>SEU RECORDE PESSOAL: <span id="go-personal-best">0</span> TB</p>
+            <p>RECORDE GLOBAL: <span id="go-global-best">0</span> TB</p>
+        </div>
+        <div class="mobile-ranking-container">
+            <h3>TOP HACKERS</h3>
+            <ul id="ranking-list-mobile-gameover"><li>Carregando...</li></ul>
         </div>
         <button id="restart-btn">REINICIAR INVASÃO</button>
     </div>
@@ -377,15 +381,20 @@
     <div id="game-over-pc" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
-            <p>DADOS EXTRAÍDOS NESTA SESSÃO: <span id="go-score-pc">0</span></p>
-            <p>SEU RECORDE PESSOAL: <span id="go-personal-best-pc">0</span></p>
-            <p>RECORDE GLOBAL: <span id="go-global-best-pc">0</span></p>
+            <p>DADOS EXTRAÍDOS: <span id="go-score-pc">0</span> <span>TB</span></p>
+            <p>SEU RECORDE PESSOAL: <span id="go-personal-best-pc">0</span> <span>TB</span></p>
+            <p>RECORDE GLOBAL: <span id="go-global-best-pc">0</span> <span>TB</span></p>
         </div>
         <p>> Pressione [ ESPAÇO ] para reiniciar a invasão_</p>
     </div>
 
+    <!-- Tela de Pause (Com Ranking integrado para Mobile) -->
     <div id="pause-screen" class="overlay-screen" style="display: none;">
         <h1>PAUSADO</h1>
+        <div id="mobile-pause-rank" class="mobile-ranking-container" style="display:none;">
+            <h3>TOP HACKERS</h3>
+            <ul id="ranking-list-mobile-pause"><li>Carregando...</li></ul>
+        </div>
         <button id="resume-btn" style="display:none;">CONTINUAR INVASÃO</button>
         <button id="sound-btn" style="display:none;">SOM: LIGADO</button>
         <button id="quit-btn" style="display:none;">DESCONECTAR</button>
@@ -509,7 +518,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile com touchstart/touchmove corrigidos
+        // Controles Mobile com touchstart/touchmove corrigidos (movimento livre)
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -632,6 +641,7 @@
                 document.getElementById('resume-btn').style.display = 'block';
                 document.getElementById('sound-btn').style.display = 'block';
                 document.getElementById('quit-btn').style.display = 'block';
+                document.getElementById('mobile-pause-rank').style.display = 'block';
             }
         });
 
@@ -889,10 +899,7 @@
 
         let updateTimer = 0;
         function update() {
-            if (isMobile) {
-                target.x = camera.x + width / 2;
-                target.y = camera.y + height / 2;
-            } else {
+            if (!isMobile) {
                 target.x = camera.x + mouseX;
                 target.y = camera.y + mouseY;
 
@@ -1115,6 +1122,7 @@
             if (player.score > personalBest) personalBest = Math.floor(player.score);
             
             if (isMobile) {
+                document.getElementById('pause-btn').style.display = 'none';
                 document.getElementById('go-score').innerText = Math.floor(player.score) + ' TB';
                 document.getElementById('go-personal-best').innerText = personalBest + ' TB';
                 document.getElementById('go-global-best').innerText = Math.max(globalBest, personalBest) + ' TB';
@@ -1168,19 +1176,25 @@
                 pData.sort((a,b) => b.score - a.score);
                 pData = pData.slice(0, 8);
 
-                const targetList = isMobile ? document.getElementById('ranking-list') : document.getElementById('ranking-list-pc');
-                targetList.innerHTML = "";
-                
-                pData.forEach(p => {
-                    const li = document.createElement('li');
-                    if (isMobile) {
-                        li.innerHTML = `<span>${p.nick.substring(0,6)} ${p.on ? '<span style="color:#00ff66">●</span>' : '<span style="color:#666">○</span>'}</span> <span>${p.score}</span>`;
-                    } else {
-                        const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
-                        li.innerHTML = `<span>> ${p.nick} ${statusTag}</span> <span>${p.score} TB</span>`;
-                    }
-                    if(p.nick === myNickname) li.style.color = '#ffcc00';
-                    targetList.appendChild(li);
+                // Atualiza o ranking para PC e os rankings integrados nas telas de overlay Mobile
+                const targetLists = isMobile 
+                    ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
+                    : [document.getElementById('ranking-list-pc')];
+
+                targetLists.forEach(targetList => {
+                    if (!targetList) return;
+                    targetList.innerHTML = "";
+                    pData.forEach(p => {
+                        const li = document.createElement('li');
+                        if (isMobile) {
+                            li.innerHTML = `<span>${p.nick.substring(0,6)} ${p.on ? '<span style="color:#00ff66">●</span>' : '<span style="color:#666">○</span>'}</span> <span>${p.score}</span>`;
+                        } else {
+                            const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
+                            li.innerHTML = `<span>> ${p.nick} ${statusTag}</span> <span>${p.score} TB</span>`;
+                        }
+                        if(p.nick === myNickname) li.style.color = '#ffcc00';
+                        targetList.appendChild(li);
+                    });
                 });
             });
         }
