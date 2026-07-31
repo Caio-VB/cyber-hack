@@ -31,6 +31,7 @@
             user-select: none;
             color: var(--primary);
             touch-action: none;
+            -webkit-touch-callout: none;
         }
 
         canvas {
@@ -85,12 +86,8 @@
             overflow-y: auto;
         }
 
-        #ranking-list::-webkit-scrollbar {
-            width: 4px;
-        }
-        #ranking-list::-webkit-scrollbar-thumb {
-            background: var(--primary);
-        }
+        #ranking-list::-webkit-scrollbar { width: 4px; }
+        #ranking-list::-webkit-scrollbar-thumb { background: var(--primary); }
 
         #ranking-list li {
             display: flex;
@@ -133,33 +130,6 @@
             pointer-events: none;
             z-index: 200;
             text-shadow: 0 0 5px var(--primary-glow);
-        }
-
-        #mobile-controls {
-            display: none;
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 200;
-            gap: 15px;
-        }
-
-        #mobile-controls button {
-            background: rgba(0, 255, 102, 0.1);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 15px 20px;
-            font-size: 14px;
-            font-family: 'Share Tech Mono', monospace;
-            border-radius: 8px;
-            box-shadow: 0 0 10px var(--primary-glow);
-            touch-action: manipulation;
-        }
-
-        #mobile-controls button:active {
-            background: var(--primary);
-            color: var(--bg-dark);
-            box-shadow: 0 0 20px var(--primary);
         }
 
         .overlay-screen {
@@ -262,7 +232,6 @@
             font-weight: bold;
         }
 
-        /* --- RESPONSIVIDADE MOBILE --- */
         @media (max-width: 768px) {
             #ui {
                 top: 10px; left: 10px; font-size: 14px; padding: 6px 10px;
@@ -279,17 +248,9 @@
             #audio-btn {
                 top: 45px; left: 10px; bottom: auto; padding: 6px 10px; font-size: 10px;
             }
-            #mobile-controls {
-                display: flex; bottom: 20px; right: 20px; left: 20px; 
-                justify-content: space-between; width: auto; pointer-events: none; 
+            #instructions { 
+                font-size: 11px; opacity: 0.8; bottom: 10px;
             }
-            #mobile-controls button {
-                pointer-events: auto; width: 80px; height: 80px; border-radius: 50%; 
-                padding: 10px; font-size: 10px; background: rgba(0, 255, 102, 0.15);
-                backdrop-filter: blur(4px); display: flex; align-items: center;
-                justify-content: center; text-align: center; line-height: 1.2;
-            }
-            #instructions { display: none; }
             .overlay-screen h1 { font-size: 32px; }
             .overlay-screen input { width: 80%; max-width: 250px; }
             .stats-box { width: 85%; padding: 10px; }
@@ -326,11 +287,9 @@
     </div>
 
     <button id="audio-btn">INICIAR.AUDIO()</button>
-    <div id="instructions">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar (20 TB)</div>
-    
-    <div id="mobile-controls">
-        <button id="btn-shoot">ATIRAR</button>
-        <button id="btn-dash">OVERCLOCK</button>
+    <div id="instructions">
+        [PC] ESPAÇO=Corre | CLIQUE=Atira<br>
+        [MOBILE] DUPLO-TOQUE (Segura)=Corre | TRIPLO-TOQUE=Atira
     </div>
 
     <div id="game-over" class="overlay-screen" style="display: none;">
@@ -384,11 +343,8 @@
         const goPersonalBest = document.getElementById('go-personal-best');
         const goGlobalBest = document.getElementById('go-global-best');
 
-        const btnDash = document.getElementById('btn-dash');
-        const btnShoot = document.getElementById('btn-shoot');
-
         let width, height;
-        let scaleFactor = 1; // Variável responsável pelo Zoom
+        let scaleFactor = 1; 
         let gameState = 'LOGIN'; 
         
         let camera = { x: 0, y: 0 };
@@ -401,23 +357,17 @@
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
-            // Se for mobile, aplica um "zoom out" afastando a câmera
-            scaleFactor = width < 768 ? 0.55 : 1; 
+            // Ajuste agressivo de escala para Mobile para dar mais campo de visão e reduzir a grossura das peças
+            scaleFactor = width < 768 ? 0.45 : 1; 
         }
         window.addEventListener('resize', resize);
         resize();
 
         function updateMousePosition(e) {
             if(gameState !== 'PLAYING') return;
-            
             if (e.touches) {
-                for (let i = 0; i < e.touches.length; i++) {
-                    if (e.touches[i].target.tagName !== 'BUTTON') {
-                        mouseX = e.touches[i].clientX;
-                        mouseY = e.touches[i].clientY;
-                        break; 
-                    }
-                }
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
             } else {
                 mouseX = e.clientX;
                 mouseY = e.clientY;
@@ -425,7 +375,42 @@
         }
         
         window.addEventListener('mousemove', updateMousePosition);
-        window.addEventListener('touchmove', updateMousePosition, { passive: true });
+        window.addEventListener('touchmove', updateMousePosition, { passive: false }); // Permite prevenir scroll natural
+
+        // SISTEMA DE GESTOS TOUCH (Duplo-clique = Corre / Triplo-clique = Atira)
+        let lastTap = 0;
+        let tapCount = 0;
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+            
+            let now = Date.now();
+            if (now - lastTap < 300) { // 300ms de tolerância entre toques
+                tapCount++;
+            } else {
+                tapCount = 1;
+            }
+            lastTap = now;
+
+            if (tapCount === 2) {
+                // Duplo-toque (Segurou o segundo toque)
+                if (gameState === 'PLAYING') isDashing = true;
+            } else if (tapCount === 3) {
+                // Triplo-toque
+                if (gameState === 'PLAYING') {
+                    isDashing = false;
+                    shootProjectile();
+                }
+                tapCount = 0;
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            // Se o usuário tirar todos os dedos da tela, para de correr
+            if (e.touches.length === 0) {
+                isDashing = false;
+            }
+        });
 
         function playDeathSound() {
             if (!audioCtx) return;
@@ -553,9 +538,6 @@
             if (gameState === 'GAMEOVER') resetGame();
         });
 
-        btnDash.addEventListener('touchstart', (e) => { e.preventDefault(); isDashing = true; });
-        btnDash.addEventListener('touchend', (e) => { e.preventDefault(); isDashing = false; });
-        
         function shootProjectile() {
             if (gameState === 'PLAYING' && player.score >= 20) {
                 player.score -= 20;
@@ -577,13 +559,8 @@
         }
 
         window.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
             if (e.button === 0) shootProjectile();
-        });
-
-        btnShoot.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            shootProjectile();
         });
 
         let audioCtx = null;
@@ -633,13 +610,19 @@
         const DASH_SPEED = 10;
         const MAGNET_RADIUS = 90; 
         const MAGNET_SPEED = 14; 
+        
+        let maxBotsAllowed = 16;
 
-        const player = { x: 0, y: 0, radius: 10, speed: BASE_SPEED, segments: [], score: 0 };
+        const player = { x: 0, y: 0, radius: 8, speed: BASE_SPEED, segments: [], score: 0 };
 
         function resetGame() {
+            // Define menos inimigos para o celular para evitar poluição visual imediata
+            maxBotsAllowed = width < 768 ? 8 : 16;
+
             player.x = 0; player.y = 0; player.score = 0;
             player.speed = BASE_SPEED; player.segments = [];
             isDashing = false; projectiles = [];
+            tapCount = 0; 
             
             for (let i = 0; i < BASE_SEGMENTS; i++) {
                 player.segments.push({ x: player.x, y: player.y });
@@ -649,12 +632,11 @@
             
             foods = [];
             for (let i = 0; i < MAX_FOOD; i++) {
-                // Modificado para usar limite absoluto (1200) e garantir espaço no mobile
-                spawnFoodNearCoordinates(player.x, player.y, Math.max(width, 1200) * 1.2);
+                spawnFoodNearCoordinates(player.x, player.y, Math.max(width / scaleFactor, 1800) * 1.2);
             }
             
             bots = []; particles = [];
-            while (bots.length < 16) {
+            while (bots.length < maxBotsAllowed) {
                 bots.push(new Bot());
             }
 
@@ -681,8 +663,7 @@
         function spawnFood(x, y, dropped = false) {
             if (x === undefined || y === undefined) {
                 const angle = Math.random() * Math.PI * 2;
-                // Modificado para distância baseada no limite absoluto
-                const dist = (Math.random() * Math.max(width, 1200) * 1.5) + 100;
+                const dist = (Math.random() * Math.max(width / scaleFactor, 1800) * 1.5) + 100;
                 x = player.x + Math.cos(angle) * dist;
                 y = player.y + Math.sin(angle) * dist;
             }
@@ -713,7 +694,6 @@
             }
         }
 
-        const MAX_BOTS = 16;
         let bots = [];
         let genePool = [];
         let generationCount = 1;
@@ -722,13 +702,13 @@
         class Bot {
             constructor(genome) {
                 const spawnAngle = Math.random() * Math.PI * 2;
-                // Calculo absoluto: Impede nascimentos na tela do celular
-                const spawnDist = Math.max(width, 1200) * 0.7 + Math.random() * 500;
+                // Distância Absoluta muito maior para não nascerem em cima do jogador (1800 base)
+                const spawnDist = Math.max(width / scaleFactor, 1800) * 0.8 + Math.random() * 500;
 
                 this.x = player.x + Math.cos(spawnAngle) * spawnDist;
                 this.y = player.y + Math.sin(spawnAngle) * spawnDist;
                 
-                this.radius = 10;
+                this.radius = 8;
                 this.speed = 4.0 + Math.random() * 0.5;
                 this.baseSpeed = this.speed;
                 this.angle = Math.atan2(player.y - this.y, player.x - this.x);
@@ -759,10 +739,10 @@
                 if (this.dead) return;
                 this.lifespan++;
 
-                // Mantém os bots ativos mas longe da sua tela
-                if (Math.hypot(player.x - this.x, player.y - this.y) > Math.max(width, 1200) * 1.5) {
+                // Mantém os bots ativos mas longe da tela principal
+                if (Math.hypot(player.x - this.x, player.y - this.y) > Math.max(width / scaleFactor, 1800) * 1.5) {
                     const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.max(width, 1200) * 0.8 + Math.random() * 500;
+                    const dist = Math.max(width / scaleFactor, 1800) * 0.8 + Math.random() * 500;
                     
                     this.x = player.x + Math.cos(angle) * dist;
                     this.y = player.y + Math.sin(angle) * dist;
@@ -817,7 +797,7 @@
                     }
                 }
 
-                this.radius = 10 + Math.min(15, Math.floor(this.score / 50));
+                this.radius = 8 + Math.min(15, Math.floor(this.score / 50));
 
                 this.x += Math.cos(this.angle) * this.speed;
                 this.y += Math.sin(this.angle) * this.speed;
@@ -842,7 +822,7 @@
                         this.score += 30; 
                         
                         this.segments.push({ x: this.segments[this.segments.length - 1].x, y: this.segments[this.segments.length - 1].y });
-                        if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width, 1200) * 1.2);
+                        if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width / scaleFactor, 1800) * 1.2);
                     } else if (distToBot < MAGNET_RADIUS) {
                         const angle = Math.atan2(this.y - f.y, this.x - f.x);
                         f.x += Math.cos(angle) * MAGNET_SPEED;
@@ -885,7 +865,7 @@
 
         function manageBots() {
             bots = bots.filter(b => !b.dead);
-            while (bots.length < MAX_BOTS) {
+            while (bots.length < maxBotsAllowed) {
                 bots.push(new Bot(createNextGenGenome()));
             }
         }
@@ -923,7 +903,6 @@
         let scoreUpdateTimer = 0;
 
         function update() {
-            // TARGET COMPENSA O ZOOM APLICADO
             target.x = camera.x + mouseX / scaleFactor;
             target.y = camera.y + mouseY / scaleFactor;
 
@@ -965,7 +944,8 @@
                 player.speed = BASE_SPEED;
             }
 
-            player.radius = 10 + Math.min(20, Math.floor(player.score / 50));
+            // Raio base do jogador menor (8 ao invés de 10) para peças não ficarem tão grossas
+            player.radius = 8 + Math.min(15, Math.floor(player.score / 50));
 
             const dist = Math.hypot(target.x - player.x, target.y - player.y);
             if (dist > 5) {
@@ -973,7 +953,6 @@
                 player.y += ((target.y - player.y) / dist) * player.speed;
             }
 
-            // CAMERA TAMBÉM COMPENSA O ZOOM
             const scaledWidth = width / scaleFactor;
             const scaledHeight = height / scaleFactor;
             camera.x = player.x - scaledWidth / 2;
@@ -1002,9 +981,9 @@
                 const f = foods[i];
                 const distToPlayer = Math.hypot(player.x - f.x, player.y - f.y);
 
-                if (distToPlayer > Math.max(width, 1200) * 1.5) {
+                if (distToPlayer > Math.max(width / scaleFactor, 1800) * 1.5) {
                     foods.splice(i, 1);
-                    spawnFoodNearCoordinates(player.x, player.y, Math.max(width, 1200) * 1.2);
+                    spawnFoodNearCoordinates(player.x, player.y, Math.max(width / scaleFactor, 1800) * 1.2);
                     continue;
                 }
 
@@ -1016,7 +995,7 @@
                     
                     let lastSeg = player.segments[player.segments.length - 1];
                     player.segments.push({ x: lastSeg.x, y: lastSeg.y });
-                    if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width, 1200) * 1.2);
+                    if (foods.length < MAX_FOOD) spawnFoodNearCoordinates(player.x, player.y, Math.max(width / scaleFactor, 1800) * 1.2);
                 } else if (distToPlayer < MAGNET_RADIUS) {
                     const angle = Math.atan2(player.y - f.y, player.x - f.x);
                     f.x += Math.cos(angle) * MAGNET_SPEED;
@@ -1081,10 +1060,10 @@
 
         function draw() {
             ctx.fillStyle = '#010503'; 
-            ctx.fillRect(0, 0, width, height); // Background NÂO recebe Scale
+            ctx.fillRect(0, 0, width, height); 
 
             ctx.save();
-            ctx.scale(scaleFactor, scaleFactor); // APLICA O ZOOM DINÂMICO
+            ctx.scale(scaleFactor, scaleFactor); 
             ctx.translate(-camera.x, -camera.y);
 
             ctx.strokeStyle = 'rgba(0, 255, 102, 0.04)';
@@ -1134,13 +1113,15 @@
                 ctx.shadowBlur = 0;
             }
 
+            // REDUÇÃO DA ESPESSURA DAS LINHAS NOS INIMIGOS E JOGADOR
+            ctx.lineWidth = 1.5;
+
             for (let i = 0; i < bots.length; i++) {
                 let bot = bots[i];
                 for (let j = bot.segments.length - 1; j >= 0; j--) {
                     const seg = bot.segments[j];
                     ctx.fillStyle = bot.isDashing ? '#550011' : '#330011';
                     ctx.strokeStyle = bot.isDashing ? '#ff5577' : '#ff3355';
-                    ctx.lineWidth = 2;
                     let size = bot.radius * (1 - (j / bot.segments.length) * 0.3);
                     ctx.fillRect(seg.x - size, seg.y - size, size * 2, size * 2);
                     ctx.strokeRect(seg.x - size, seg.y - size, size * 2, size * 2);
@@ -1154,7 +1135,6 @@
                     
                     ctx.fillStyle = gameState === 'GAMEOVER' ? '#222' : '#002211';
                     ctx.strokeStyle = gameState === 'GAMEOVER' ? '#555' : '#00ff66';
-                    ctx.lineWidth = 2;
                     if(isDashing) ctx.strokeStyle = '#ffcc00';
                     
                     ctx.beginPath();
