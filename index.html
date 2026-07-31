@@ -362,7 +362,7 @@
     <button id="audio-btn-pc">PARAR.AUDIO()</button>
     <div id="instructions-pc">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar (20 TB)</div>
     
-    <!-- Game Over Mobile (Botões primeiro, ranking abaixo) -->
+    <!-- Game Over Mobile -->
     <div id="game-over" class="overlay-screen" style="display: none;">
         <h1>SISTEMA PURGADO</h1>
         <div class="stats-box">
@@ -388,7 +388,7 @@
         <p>> Pressione [ ESPAÇO ] para reiniciar a invasão_</p>
     </div>
 
-    <!-- Tela de Pause (Com botões primeiro e ranking abaixo) -->
+    <!-- Tela de Pause (Mobile) -->
     <div id="pause-screen" class="overlay-screen" style="display: none;">
         <h1>PAUSADO</h1>
         <button id="resume-btn" style="display:none;">CONTINUAR INVASÃO</button>
@@ -517,7 +517,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile com touchstart/touchmove corrigidos (movimento livre)
+        // Controles Mobile corrigidos (Toque contínuo e movimento livre em direção ao toque)
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -843,8 +843,13 @@
                 player.segments.push({ x: player.x, y: player.y });
             }
             
-            if (isMobile) document.getElementById('score').innerText = "0";
-            else document.getElementById('score-pc').innerText = "0";
+            if (isMobile) {
+                document.getElementById('score').innerText = "0";
+                target.x = player.x;
+                target.y = player.y;
+            } else {
+                document.getElementById('score-pc').innerText = "0";
+            }
             
             updateFirebaseScore(); 
             
@@ -892,10 +897,7 @@
 
         let updateTimer = 0;
         function update() {
-            if (isMobile) {
-                target.x = camera.x + width / 2;
-                target.y = camera.y + height / 2;
-            } else {
+            if (!isMobile) {
                 target.x = camera.x + mouseX;
                 target.y = camera.y + mouseY;
 
@@ -1183,11 +1185,7 @@
                         const li = document.createElement('li');
                         const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
                         
-                        if (isMobile) {
-                            li.innerHTML = `<span>> ${p.nick.substring(0,6)} ${statusTag}</span> <span>${p.score} TB</span>`;
-                        } else {
-                            li.innerHTML = `<span>> ${p.nick} ${statusTag}</span> <span>${p.score} TB</span>`;
-                        }
+                        li.innerHTML = `<span>> ${p.nick} ${statusTag}</span> <span>${p.score} TB</span>`;
 
                         if(p.nick === myNickname) li.style.color = '#ffcc00';
                         targetList.appendChild(li);
