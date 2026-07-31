@@ -68,7 +68,7 @@
             height: max-content;
         }
 
-        /* Ranking Mobile Integrado em Overlays (Posicionado abaixo dos botões) */
+        /* Ranking Mobile Integrado em Overlays */
         .mobile-ranking-container {
             width: 100%;
             max-width: 280px;
@@ -509,6 +509,7 @@
         let tapTimes = [];
         const DASH_TAP_WINDOW = 350; 
         let projectiles = [];
+        let autoShootTimer = 0; // Temporizador para o tiro automático no mobile
 
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -517,7 +518,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile corrigidos (Toque contínuo e movimento livre em direção ao toque)
+        // Controles Mobile corrigidos para que o jogador siga o toque na tela
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -837,7 +838,7 @@
 
         function resetGame() {
             player.x = 0; player.y = 0; player.score = 0; player.segments = [];
-            isDashing = false; tapTimes = []; projectiles = [];
+            isDashing = false; tapTimes = []; projectiles = []; autoShootTimer = 0;
             
             for (let i = 0; i < BASE_SEGMENTS; i++) {
                 player.segments.push({ x: player.x, y: player.y });
@@ -897,28 +898,57 @@
 
         let updateTimer = 0;
         function update() {
-            if (!isMobile) {
+            if (isMobile) {
+                // Sistema de tiro automático moderado para mobile (dispara a cada ~60 frames / 1 segundo se tiver score suficiente)
+                autoShootTimer++;
+                if (autoShootTimer > 60 && player.score >= 20) {
+                    autoShootTimer = 0;
+                    player.score -= 20;
+                    document.getElementById('score').innerText = Math.floor(player.score);
+                    updateFirebaseScore();
+                    
+                    // Dispara em direção ao bot mais próximo ou em frente se não houver bots visíveis
+                    let nearestBot = null;
+                    let minB算出Dist = 400;
+                    for (let b of bots) {
+                        let d = Math.hypot(b.x - player.x, b.y - player.y);
+                        if (d < minB算出Dist) { minB算出Dist = d; nearestBot = b; }
+                    }
+                    
+                    const shootAngle = nearestBot ? Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x) : Math.atan2(target.y - player.y, target.x - player.x);
+                    projectiles.push({
+                        x: player.x, y: player.y,
+                        vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15,
+                        life: 80, text: Math.random() < 0.5 ? '0' : '1'
+                    });
+                    if (player.segments.length > BASE_SEGMENTS) {
+                        player.segments.pop();
+                        player.segments.pop();
+                    }
+                }
+            } else {
                 target.x = camera.x + mouseX;
                 target.y = camera.y + mouseY;
+            }
 
-                for (let i = projectiles.length - 1; i >= 0; i--) {
-                    let p = projectiles[i];
-                    p.x += p.vx; p.y += p.vy; p.life--;
-                    let hitBot = false;
-                    for (let j = 0; j < bots.length; j++) {
-                        let bot = bots[j];
-                        if(bot.dead) continue;
-                        if (Math.hypot(bot.x - p.x, bot.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); break; }
-                        for (let k = 0; k < bot.segments.length; k++) {
-                            let seg = bot.segments[k];
-                            if (Math.hypot(seg.x - p.x, seg.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); break; }
-                        }
-                        if(hitBot) break;
+            // Tratamento unificado de projéteis para ambas as plataformas
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                let hitBot = false;
+                for (let j = 0; j < bots.length; j++) {
+                    let bot = bots[j];
+                    if(bot.dead) continue;
+                    if (Math.hypot(bot.x - p.x, bot.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); break; }
+                    for (let k = 0; k < bot.segments.length; k++) {
+                        let seg = bot.segments[k];
+                        if (Math.hypot(seg.x - p.x, seg.y - p.y) < bot.radius + 10) { hitBot = true; bot.die(); break; }
                     }
-                    if (hitBot || p.life <= 0) {
-                        spawnParticles(p.x, p.y, '#ffcc00', 5);
-                        projectiles.splice(i, 1);
-                    }
+                    if(hitBot) break;
+                }
+                if (hitBot || p.life <= 0) {
+                    spawnParticles(p.x, p.y, '#ffcc00', 5);
+                    projectiles.splice(i, 1);
                 }
             }
 
@@ -1185,7 +1215,7 @@
                         const li = document.createElement('li');
                         const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
                         
-                        li.innerHTML = `<span>> ${p.nick} ${statusTag}</span> <span>${p.score} TB</span>`;
+                        li.innerHTML = `<span>> ${p.nick.substring(0,6)} ${statusTag}</span> <span>${p.score} TB</span>`;
 
                         if(p.nick === myNickname) li.style.color = '#ffcc00';
                         targetList.appendChild(li);
