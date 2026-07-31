@@ -417,7 +417,7 @@
             if (x === undefined) {
                 const maxDim = Math.max(width, height);
                 const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * (maxDim * 3); // Espalha mais amplamente
+                const dist = Math.random() * (maxDim * 10); // Espalha mais amplamente
                 x = player.x + Math.cos(angle) * dist;
                 y = player.y + Math.sin(angle) * dist;
             }
