@@ -415,8 +415,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // [CORREÇÃO] Habilitar persistência offline. Isso cria um cache local
-        // que impede o jogo de travar caso a conexão do celular sofra pequenas quedas.
         db.enablePersistence().catch((err) => {
             console.warn("Persistência offline falhou:", err.code);
         });
@@ -459,7 +457,6 @@
             }
         }
 
-        // Música de fundo sintetizada unificada
         let isAudioPlaying = false;
         let audioInterval = null;
         function startSynthMusic() {
@@ -610,14 +607,11 @@
             if (nick.length < 3 || pass.length < 3) {
                 errorMsg.innerText = "Mínimo de 3 caracteres."; return;
             }
-            errorMsg.innerText = "Conectando...";
+            errorMsg.innerText = "Conectando ao Firebase...";
             btn.disabled = true;
 
             try {
                 const docRef = db.collection("players").doc(nick);
-                
-                // [CORREÇÃO] Removido o timeout rígido (Promise.race). 
-                // Com o enablePersistence, o Firebase gerencia a conexão perfeitamente, usando o cache se estiver offline momentaneamente.
                 const doc = await docRef.get();
                 
                 if (doc.exists) {
@@ -637,8 +631,9 @@
                     initGameData(nick, docRef, 0);
                 }
             } catch (e) {
-                errorMsg.innerText = "Erro de rede. Conectando offline se houver cache...";
-                console.error(e);
+                // MODIFICAÇÃO IMPORTANTE: Agora ele vai mostrar na tela qual regra o Firebase usou para barrar o acesso.
+                errorMsg.innerText = `Servidor Recusou: ${e.message}`;
+                console.error("Erro completo:", e);
                 btn.disabled = false;
             }
         });
@@ -1060,7 +1055,8 @@
             }
 
             updateTimer++;
-            if(updateTimer > 120) { updateFirebaseScore(); updateTimer = 0; }
+            // MODIFICAÇÃO IMPORTANTE: Agora o jogo envia os dados para o Firebase a cada 10 segundos (600 frames) e não a cada 2 segs. Isso impede o esgotamento do plano gratuito.
+            if(updateTimer > 600) { updateFirebaseScore(); updateTimer = 0; }
         }
 
         function draw() {
@@ -1179,7 +1175,6 @@
                 personalBest = currentScore;
             }
 
-            // A marcação 'isOnline' resolve a incompatibilidade de dispositivos
             playerDocRef.set({
                 nickname: myNickname,
                 score: isDeath ? 0 : currentScore,
@@ -1191,7 +1186,6 @@
             });
         }
 
-        // [CORREÇÃO] Eventos mais robustos para indicar status "Offline"
         window.addEventListener('beforeunload', () => {
             if (playerDocRef) playerDocRef.update({ isOnline: false }).catch(()=>{});
         });
@@ -1215,8 +1209,6 @@
         }
 
         function initRealtimeRanking() {
-            // [CORREÇÃO] Aumentamos o limite para 100 para garantir que jogadores 
-            // recentes/novatos apareçam na consulta mesmo se houver muitos high scores.
             db.collection("players").orderBy("bestScore", "desc").limit(100).onSnapshot((snap) => {
                 let pData = [];
                 let meFound = false;
@@ -1225,7 +1217,6 @@
                     const d = doc.data();
                     let on = false;
                     
-                    // Verificação relaxada para ignorar diferenças de relógio entre PCs e Celulares
                     if (d.isOnline === true || d.lastSeen) {
                         let timeDiff = 999999;
                         if(d.lastSeen && d.lastSeen.toMillis) {
@@ -1234,10 +1225,7 @@
                             timeDiff = Date.now() - d.lastSeen.toDate().getTime();
                         }
                         
-                        // Considera online pelo flag isOnline ou se o sinal ocorreu nos ultimos ~90s
                         if (d.isOnline === true || timeDiff < 90000) on = true;
-                        
-                        // Força offline se tiver fechado a guia ou se o tempo for velho
                         if (d.isOnline === false && timeDiff > 20000) on = false; 
                     }
 
@@ -1251,13 +1239,12 @@
                     pData.push({ nick: d.nickname, score: s, on: on });
                 });
 
-                // Garante que VOCÊ sempre apareça na própria lista (se ficar fora do Top 100)
                 if (!meFound && myNickname) {
                     pData.push({ nick: myNickname, score: Math.floor(player.score), on: true });
                 }
 
                 pData.sort((a,b) => b.score - a.score);
-                pData = pData.slice(0, 8); // Pega apenas o Top 8
+                pData = pData.slice(0, 8); 
 
                 const targetLists = isMobile 
                     ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
