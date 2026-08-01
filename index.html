@@ -415,8 +415,11 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // ADICIONE ESTA LINHA: Resolve bloqueios de WebSocket em conexões Mobile
-        db.settings({ experimentalAutoDetectLongPolling: true });
+        // [CORREÇÃO] Habilitar persistência offline. Isso cria um cache local
+        // que impede o jogo de travar caso a conexão do celular sofra pequenas quedas.
+        db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+            console.warn("Persistência offline falhou:", err.code);
+        });
 
         // Detecção de Dispositivo (Mobile vs PC)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800;
@@ -512,7 +515,7 @@
         let tapTimes = [];
         const DASH_TAP_WINDOW = 350; 
         let projectiles = [];
-        let autoShootTimer = 0; // Temporizador para o tiro automático no mobile
+        let autoShootTimer = 0;
 
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -521,7 +524,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Controles Mobile corrigidos para que o jogador siga o toque na tela
         canvas.addEventListener('touchstart', (e) => {
             if (!isMobile || gameState !== 'PLAYING') return;
             e.preventDefault(); 
@@ -554,7 +556,6 @@
 
         canvas.addEventListener('touchcancel', () => { if(isMobile) isDashing = false; });
 
-        // Controles PC
         window.addEventListener('mousemove', (e) => {
             if (isMobile || gameState !== 'PLAYING') return;
             mouseX = e.clientX; mouseY = e.clientY;
@@ -612,42 +613,36 @@
             errorMsg.innerText = "Conectando...";
             btn.disabled = true;
 
-            // Função auxiliar de Timeout para requisições do Firebase
-            const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms));
-
             try {
                 const docRef = db.collection("players").doc(nick);
                 
-                // Força um timeout de 8 segundos (8000ms) no carregamento
-                const doc = await Promise.race([docRef.get(), timeout(15000)]);
+                // [CORREÇÃO] Removido o timeout rígido (Promise.race). 
+                // Com o enablePersistence, o Firebase gerencia a conexão perfeitamente, usando o cache se estiver offline momentaneamente.
+                const doc = await docRef.get();
                 
                 if (doc.exists) {
                     if (doc.data().password === pass) {
-                        playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+                        playerDocRef = docRef;
                         initGameData(nick, docRef, doc.data().bestScore || 0);
                     } else {
                         errorMsg.innerText = "Senha incorreta!";
                         btn.disabled = false;
                     }
                 } else {
-                    // Aplica o timeout também na criação de conta
-                    await Promise.race([docRef.set({
-                        nickname: nick, password: pass, score: 0, bestScore: 0,
+                    await docRef.set({
+                        nickname: nick, password: pass, score: 0, bestScore: 0, isOnline: true,
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    }), timeout(8000)]);
+                    });
+                    playerDocRef = docRef;
                     initGameData(nick, docRef, 0);
                 }
             } catch (e) {
-                if (e.message === "TIMEOUT") {
-                    errorMsg.innerText = "Tempo esgotado. Verifique a rede.";
-                } else {
-                    errorMsg.innerText = "Erro de conexão ao banco.";
-                }
+                errorMsg.innerText = "Erro de rede. Conectando offline se houver cache...";
+                console.error(e);
                 btn.disabled = false;
             }
         });
 
-        // Botões de Menu e Pause unificados
         document.getElementById('pause-btn').addEventListener('click', () => {
             if (isMobile && gameState === 'PLAYING') {
                 gameState = 'PAUSED';
@@ -704,9 +699,8 @@
             resetGame();
             initRealtimeRanking();
             
-            // Dispara o sinal de online imediatamente, sem esperar 10 segundos
             heartbeat(); 
-            setInterval(heartbeat, 10000);
+            setInterval(heartbeat, 15000); // Atualiza status a cada 15 segs
         }
         document.getElementById('restart-btn').addEventListener('click', () => resetGame());
 
@@ -720,7 +714,6 @@
             { char: 'if', color: '#dda0dd' }, { char: '[]', color: '#ffcc00' }
         ];
 
-        // --- ALGORITMO GENÉTICO COM FITNESS BASEADO EM AGRESSIVIDADE ---
         let genePool = [];
         let maxFitnessEver = 0;
 
@@ -916,7 +909,6 @@
         let updateTimer = 0;
         function update() {
             if (isMobile) {
-                // Sistema de tiro automático moderado para mobile (dispara a cada ~60 frames / 1 segundo se tiver score suficiente)
                 autoShootTimer++;
                 if (autoShootTimer > 60 && player.score >= 20) {
                     autoShootTimer = 0;
@@ -924,12 +916,11 @@
                     document.getElementById('score').innerText = Math.floor(player.score);
                     updateFirebaseScore();
                     
-                    // Dispara em direção ao bot mais próximo ou em frente se não houver bots visíveis
                     let nearestBot = null;
-                    let minB算出Dist = 400;
+                    let minBotDist = 400;
                     for (let b of bots) {
                         let d = Math.hypot(b.x - player.x, b.y - player.y);
-                        if (d < minB算出Dist) { minB算出Dist = d; nearestBot = b; }
+                        if (d < minBotDist) { minBotDist = d; nearestBot = b; }
                     }
                     
                     const shootAngle = nearestBot ? Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x) : Math.atan2(target.y - player.y, target.x - player.x);
@@ -948,7 +939,6 @@
                 target.y = camera.y + mouseY;
             }
 
-            // Tratamento unificado de projéteis para ambas as plataformas
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.x += p.vx; p.y += p.vy; p.life--;
@@ -1161,7 +1151,6 @@
             gameState = 'GAMEOVER';
             isDashing = false;
             playSound('die');
-
             stopSynthMusic();
 
             if (player.score > personalBest) personalBest = Math.floor(player.score);
@@ -1186,57 +1175,89 @@
             if (!playerDocRef) return;
             
             let currentScore = Math.floor(player.score);
-            
-            // Garante que o recorde seja atualizado mesmo antes do Game Over
             if (currentScore > personalBest) {
                 personalBest = currentScore;
             }
 
+            // A marcação 'isOnline' resolve a incompatibilidade de dispositivos
             playerDocRef.set({
                 nickname: myNickname,
                 score: isDeath ? 0 : currentScore,
                 bestScore: personalBest,
+                isOnline: !isDeath && gameState === 'PLAYING',
                 lastSeen: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true }).catch((err)=>{ 
                 console.warn("Sincronização pendente:", err); 
             });
         }
 
-        // Salva os dados forçadamente quando o jogador troca de aba ou minimiza o navegador (Celular e PC)
+        // [CORREÇÃO] Eventos mais robustos para indicar status "Offline"
+        window.addEventListener('beforeunload', () => {
+            if (playerDocRef) playerDocRef.update({ isOnline: false }).catch(()=>{});
+        });
+
         window.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === 'hidden' && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+            if (document.visibilityState === 'hidden' && playerDocRef) {
                 updateFirebaseScore();
+                playerDocRef.update({ isOnline: false }).catch(()=>{});
+            } else if (document.visibilityState === 'visible' && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+                heartbeat();
             }
         });
 
         function heartbeat() {
-            if (gameState === 'PLAYING' && playerDocRef) {
-                playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
+            if ((gameState === 'PLAYING' || gameState === 'PAUSED') && playerDocRef) {
+                playerDocRef.update({ 
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                    isOnline: true 
+                }).catch(()=>{});
             }
         }
 
         function initRealtimeRanking() {
-            db.collection("players").orderBy("bestScore", "desc").limit(30).onSnapshot((snap) => {
+            // [CORREÇÃO] Aumentamos o limite para 100 para garantir que jogadores 
+            // recentes/novatos apareçam na consulta mesmo se houver muitos high scores.
+            db.collection("players").orderBy("bestScore", "desc").limit(100).onSnapshot((snap) => {
                 let pData = [];
+                let meFound = false;
+
                 snap.forEach(doc => {
                     const d = doc.data();
-                    
                     let on = false;
-                    if(d.lastSeen && d.lastSeen.toMillis) {
-                        on = (Date.now() - d.lastSeen.toMillis()) < 20000;
-                    } else if(d.lastSeen && d.lastSeen.toDate) {
-                        on = (Date.now() - d.lastSeen.toDate().getTime()) < 20000;
+                    
+                    // Verificação relaxada para ignorar diferenças de relógio entre PCs e Celulares
+                    if (d.isOnline === true || d.lastSeen) {
+                        let timeDiff = 999999;
+                        if(d.lastSeen && d.lastSeen.toMillis) {
+                            timeDiff = Date.now() - d.lastSeen.toMillis();
+                        } else if(d.lastSeen && d.lastSeen.toDate) {
+                            timeDiff = Date.now() - d.lastSeen.toDate().getTime();
+                        }
+                        
+                        // Considera online pelo flag isOnline ou se o sinal ocorreu nos ultimos ~90s
+                        if (d.isOnline === true || timeDiff < 90000) on = true;
+                        
+                        // Força offline se tiver fechado a guia ou se o tempo for velho
+                        if (d.isOnline === false && timeDiff > 20000) on = false; 
                     }
 
-                    if (d.nickname === myNickname && gameState === 'PLAYING') on = true;
+                    if (d.nickname === myNickname) {
+                        if (gameState === 'PLAYING') on = true;
+                        meFound = true;
+                    }
                     
                     let s = on ? Math.floor(d.score||0) : Math.floor(d.bestScore||0);
                     if (Math.floor(d.bestScore||0) > globalBest) globalBest = Math.floor(d.bestScore);
-                    pData.push({ nick: d.nickname, score: s, on });
+                    pData.push({ nick: d.nickname, score: s, on: on });
                 });
 
+                // Garante que VOCÊ sempre apareça na própria lista (se ficar fora do Top 100)
+                if (!meFound && myNickname) {
+                    pData.push({ nick: myNickname, score: Math.floor(player.score), on: true });
+                }
+
                 pData.sort((a,b) => b.score - a.score);
-                pData = pData.slice(0, 8);
+                pData = pData.slice(0, 8); // Pega apenas o Top 8
 
                 const targetLists = isMobile 
                     ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
@@ -1250,8 +1271,8 @@
                         const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
                         
                         li.innerHTML = `<span>> ${p.nick.substring(0,6)} ${statusTag}</span> <span>${p.score} TB</span>`;
-
                         if(p.nick === myNickname) li.style.color = '#ffcc00';
+                        
                         targetList.appendChild(li);
                     });
                 });
