@@ -417,7 +417,7 @@
 
         // [CORREÇÃO] Habilitar persistência offline. Isso cria um cache local
         // que impede o jogo de travar caso a conexão do celular sofra pequenas quedas.
-        db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        db.enablePersistence().catch((err) => {
             console.warn("Persistência offline falhou:", err.code);
         });
 
