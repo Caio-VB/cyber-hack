@@ -415,6 +415,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // ADICIONE ESTA LINHA: Resolve bloqueios de WebSocket em conexões Mobile
+        db.settings({ experimentalAutoDetectLongPolling: true });
+
         // Detecção de Dispositivo (Mobile vs PC)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800;
 
@@ -616,10 +619,11 @@
                 const docRef = db.collection("players").doc(nick);
                 
                 // Força um timeout de 8 segundos (8000ms) no carregamento
-                const doc = await Promise.race([docRef.get(), timeout(8000)]);
+                const doc = await Promise.race([docRef.get(), timeout(15000)]);
                 
                 if (doc.exists) {
                     if (doc.data().password === pass) {
+                        playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
                         initGameData(nick, docRef, doc.data().bestScore || 0);
                     } else {
                         errorMsg.innerText = "Senha incorreta!";
@@ -699,9 +703,11 @@
             if (soundEnabled) startSynthMusic();
             resetGame();
             initRealtimeRanking();
+            
+            // Dispara o sinal de online imediatamente, sem esperar 10 segundos
+            heartbeat(); 
             setInterval(heartbeat, 10000);
         }
-
         document.getElementById('restart-btn').addEventListener('click', () => resetGame());
 
         let foods = [];
@@ -1202,7 +1208,7 @@
                 updateFirebaseScore();
             }
         });
-        
+
         function heartbeat() {
             if (gameState === 'PLAYING' && playerDocRef) {
                 playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
