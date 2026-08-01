@@ -609,9 +609,15 @@
             errorMsg.innerText = "Conectando...";
             btn.disabled = true;
 
+            // Função auxiliar de Timeout para requisições do Firebase
+            const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms));
+
             try {
                 const docRef = db.collection("players").doc(nick);
-                const doc = await docRef.get();
+                
+                // Força um timeout de 8 segundos (8000ms) no carregamento
+                const doc = await Promise.race([docRef.get(), timeout(8000)]);
+                
                 if (doc.exists) {
                     if (doc.data().password === pass) {
                         initGameData(nick, docRef, doc.data().bestScore || 0);
@@ -620,14 +626,19 @@
                         btn.disabled = false;
                     }
                 } else {
-                    await docRef.set({
+                    // Aplica o timeout também na criação de conta
+                    await Promise.race([docRef.set({
                         nickname: nick, password: pass, score: 0, bestScore: 0,
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    }), timeout(8000)]);
                     initGameData(nick, docRef, 0);
                 }
             } catch (e) {
-                errorMsg.innerText = "Erro de rede.";
+                if (e.message === "TIMEOUT") {
+                    errorMsg.innerText = "Tempo esgotado. Verifique a rede.";
+                } else {
+                    errorMsg.innerText = "Erro de conexão ao banco.";
+                }
                 btn.disabled = false;
             }
         });
@@ -1167,14 +1178,31 @@
 
         function updateFirebaseScore(isDeath = false) {
             if (!playerDocRef) return;
+            
+            let currentScore = Math.floor(player.score);
+            
+            // Garante que o recorde seja atualizado mesmo antes do Game Over
+            if (currentScore > personalBest) {
+                personalBest = currentScore;
+            }
+
             playerDocRef.set({
                 nickname: myNickname,
-                score: isDeath ? 0 : Math.floor(player.score),
+                score: isDeath ? 0 : currentScore,
                 bestScore: personalBest,
                 lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).catch(()=>{});
+            }, { merge: true }).catch((err)=>{ 
+                console.warn("Sincronização pendente:", err); 
+            });
         }
 
+        // Salva os dados forçadamente quando o jogador troca de aba ou minimiza o navegador (Celular e PC)
+        window.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === 'hidden' && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+                updateFirebaseScore();
+            }
+        });
+        
         function heartbeat() {
             if (gameState === 'PLAYING' && playerDocRef) {
                 playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
