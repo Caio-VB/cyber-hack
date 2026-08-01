@@ -93,7 +93,7 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 90px;
+            max-height: 120px; /* Levemente aumentado para ver melhor os nomes rolando */
             overflow-y: auto;
         }
 
@@ -173,8 +173,9 @@
             padding: 0;
             margin: 0;
             font-size: 13px;
-            max-height: 220px;
+            max-height: 250px; /* Levemente aumentado */
             overflow-y: auto;
+            pointer-events: auto; /* Permite rolar com o mouse na área da lista */
         }
 
         #ranking-list-pc li {
@@ -631,7 +632,6 @@
                     initGameData(nick, docRef, 0);
                 }
             } catch (e) {
-                // MODIFICAÇÃO IMPORTANTE: Agora ele vai mostrar na tela qual regra o Firebase usou para barrar o acesso.
                 errorMsg.innerText = `Servidor Recusou: ${e.message}`;
                 console.error("Erro completo:", e);
                 btn.disabled = false;
@@ -695,7 +695,7 @@
             initRealtimeRanking();
             
             heartbeat(); 
-            setInterval(heartbeat, 15000); // Atualiza status a cada 15 segs
+            setInterval(heartbeat, 15000); 
         }
         document.getElementById('restart-btn').addEventListener('click', () => resetGame());
 
@@ -1055,7 +1055,6 @@
             }
 
             updateTimer++;
-            // MODIFICAÇÃO IMPORTANTE: Agora o jogo envia os dados para o Firebase a cada 10 segundos (600 frames) e não a cada 2 segs. Isso impede o esgotamento do plano gratuito.
             if(updateTimer > 600) { updateFirebaseScore(); updateTimer = 0; }
         }
 
@@ -1244,7 +1243,9 @@
                 }
 
                 pData.sort((a,b) => b.score - a.score);
-                pData = pData.slice(0, 8); 
+                
+                // REMOVIDA A TRAVA QUE LIMITAVA A LISTA EM 8 JOGADORES:
+                // pData = pData.slice(0, 8); 
 
                 const targetLists = isMobile 
                     ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
