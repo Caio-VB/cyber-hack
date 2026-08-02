@@ -499,8 +499,8 @@
         const DASH_SPEED = isMobile ? 8.0 : 12.0;
         const MAGNET_RADIUS = isMobile ? 60 : 90; 
         const GRID_SIZE = 50;        
-        const MAX_FOOD = isMobile ? 2500 : 300;       
-        const MAX_BOTS = isMobile ? 20 : 16;         
+        const MAX_FOOD = isMobile ? 1500 : 300;       
+        const MAX_BOTS = isMobile ? 16 : 16;         
 
         const player = { x: 0, y: 0, radius: isMobile ? 8 : 10, speed: BASE_SPEED, segments: [], score: 0 };
         let camera = { x: 0, y: 0 };
@@ -796,11 +796,12 @@
                 this.y += Math.sin(this.angle) * this.speed;
 
                 let px = this.x, py = this.y;
+                const botSpacing = this.radius * 0.9; // Espaçamento dinâmico
                 for (let seg of this.segments) {
                     let d = Math.hypot(px - seg.x, py - seg.y);
-                    if (d > 8) {
-                        seg.x += (px - seg.x) / d * (d - 8) * 0.6;
-                        seg.y += (py - seg.y) / d * (d - 8) * 0.6;
+                    if (d > botSpacing) {
+                        seg.x += (px - seg.x) / d * (d - botSpacing) * 0.6;
+                        seg.y += (py - seg.y) / d * (d - botSpacing) * 0.6;
                     }
                     px = seg.x; py = seg.y;
                 }
@@ -969,7 +970,9 @@
                 if (isMobile) document.getElementById('score').innerText = Math.floor(player.score);
                 else document.getElementById('score-pc').innerText = Math.floor(player.score);
 
-                if (player.segments.length > BASE_SEGMENTS + Math.floor(player.score/15)) {
+                const maxSegments = 120;
+                const targetSegments = Math.min(maxSegments, BASE_SEGMENTS + Math.floor(player.score / 25));
+                if (player.segments.length > targetSegments && player.segments.length > BASE_SEGMENTS) {
                     let tail = player.segments.pop();
                     if(Math.random() < 0.4) spawnFood(tail.x, tail.y, true);
                 }
@@ -988,7 +991,8 @@
             camera.y = player.y - height / 2;
 
             let px = player.x, py = player.y;
-            const spacing = isDashing ? 14 : (isMobile ? 7 : 10);
+            // O espaçamento agora cresce proporcionalmente ao tamanho da cobra
+            const spacing = isDashing ? player.radius * 1.5 : player.radius * 1.0; 
             for (let seg of player.segments) {
                 let d = Math.hypot(px - seg.x, py - seg.y);
                 if (d > spacing) {
@@ -1021,7 +1025,11 @@
                     if (isMobile) document.getElementById('score').innerText = Math.floor(player.score);
                     else document.getElementById('score-pc').innerText = Math.floor(player.score);
 
-                    player.segments.push({...player.segments[player.segments.length-1]});
+                    const maxSegments = 120; // Limite absoluto
+                    const targetSegments = BASE_SEGMENTS + Math.floor(player.score / 25);
+                    if (player.segments.length < targetSegments && player.segments.length < maxSegments) {
+                        player.segments.push({...player.segments[player.segments.length-1]});
+                    }
                     if(foods.length < MAX_FOOD) spawnFood();
                 } else if (dist < MAGNET_RADIUS) {
                     f.x += (player.x - f.x) * 0.1;
@@ -1083,6 +1091,11 @@
 
             ctx.font = '12px "Share Tech Mono"';
             for (let f of foods) {
+                // Se estiver fora da tela, ignora o desenho
+                if (f.x < camera.x - 20 || f.x > camera.x + width + 20 || 
+                    f.y < camera.y - 20 || f.y > camera.y + height + 20) {
+                    continue;
+                }
                 ctx.fillStyle = f.color || '#88ccaa';
                 ctx.fillText(f.char, f.x - 4, f.y + 4);
             }
@@ -1115,6 +1128,13 @@
             if (gameState === 'PLAYING' || gameState === 'GAMEOVER' || gameState === 'PAUSED') {
                 for (let i = player.segments.length - 1; i >= 0; i--) {
                     const seg = player.segments[i];
+                    
+                    // Culling dos segmentos
+                    if (seg.x < camera.x - 50 || seg.x > camera.x + width + 50 || 
+                        seg.y < camera.y - 50 || seg.y > camera.y + height + 50) {
+                        continue;
+                    }
+            
                     const s = player.radius * (1 - (i/player.segments.length)*0.4);
                     ctx.fillStyle = gameState === 'GAMEOVER' ? '#222' : '#002211';
                     ctx.strokeStyle = gameState === 'GAMEOVER' ? '#555' : (isDashing ? '#ffcc00' : '#00ff66');
