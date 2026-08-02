@@ -587,7 +587,6 @@
             if (isMobile || e.button !== 0 || gameState !== 'PLAYING' || player.score < 20) return;
             player.score -= 20;
             document.getElementById('score-pc').innerText = Math.floor(player.score);
-            updateFirebaseScore();
             const angle = Math.atan2(target.y - player.y, target.x - player.x);
             projectiles.push({
                 x: player.x, y: player.y,
@@ -918,7 +917,6 @@
                     autoShootTimer = 0;
                     player.score -= 20;
                     document.getElementById('score').innerText = Math.floor(player.score);
-                    updateFirebaseScore();
                     
                     let nearestBot = null;
                     let minBotDist = 400;
@@ -1062,9 +1060,6 @@
                 p.x += p.vx; p.y += p.vy; p.life -= 0.05;
                 if (p.life <= 0) particles.splice(i, 1);
             }
-
-            updateTimer++;
-            if(updateTimer > 600) { updateFirebaseScore(); updateTimer = 0; }
         }
 
         function draw() {
@@ -1178,15 +1173,12 @@
         function updateFirebaseScore(isDeath = false) {
             if (!playerDocRef) return;
             
+            // ATUALIZAÇÃO GARANTIDA: Verifica o recorde antes de montar o pacote para o Firebase
             let currentScore = Math.floor(player.score);
             if (currentScore > personalBest) {
                 personalBest = currentScore;
             }
 
-            // CORREÇÃO: Não zerar score na morte. Isso fazia o jogador sumir do ranking.
-            // Usar update() ao invés de set() para não sobrescrever campos acidentalmente.
-            // Manter isOnline true mesmo na morte (jogador ainda está na tela de game over).
-            
             const updateData = {
                 bestScore: personalBest,
                 isOnline: true,
@@ -1196,10 +1188,9 @@
             if (!isDeath) {
                 updateData.score = currentScore;
             }
-            // Se for morte, mantemos o último score conhecido no banco (não zeramos)
 
             playerDocRef.update(updateData).catch((err)=>{ 
-                console.warn("Sincronização pendente:", err); 
+                console.warn("Sincronização falhou temporariamente:", err); 
             });
         }
 
@@ -1220,14 +1211,9 @@
         });
 
         function heartbeat() {
-            // Mantém online durante jogo, pause e game over
+            // Mantém online durante jogo, pause e game over e envia os dados consolidados
             if (playerDocRef && (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'GAMEOVER')) {
-                playerDocRef.update({ 
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-                    isOnline: true,
-                    score: Math.floor(player.score),
-                    bestScore: personalBest
-                }).catch(()=>{});
+                updateFirebaseScore(gameState === 'GAMEOVER');
             }
         }
 
