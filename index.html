@@ -8,6 +8,9 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Pyodide (Motor Python no Navegador) -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -15,6 +18,8 @@
         :root {
             --primary: #00ff66;
             --primary-glow: rgba(0, 255, 102, 0.4);
+            --ai-color: #00ccff;
+            --ai-glow: rgba(0, 204, 255, 0.4);
             --bg-dark: #010503;
             --panel-bg: rgba(2, 15, 8, 0.95);
             --danger: #ff3355;
@@ -22,316 +27,105 @@
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
             overflow: hidden;
             background-color: var(--bg-dark);
             font-family: 'Share Tech Mono', monospace;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
-            color: var(--primary);
-            touch-action: none;
+            user-select: none; -webkit-user-select: none;
+            color: var(--primary); touch-action: none;
         }
 
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
+        canvas { display: block; width: 100vw; height: 100vh; }
 
         /* UI Mobile */
         #hud-top {
-            position: absolute;
-            top: env(safe-area-inset-top, 10px);
-            left: 10px;
-            right: 60px;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            pointer-events: none;
-            z-index: 10;
+            position: absolute; top: env(safe-area-inset-top, 10px); left: 10px; right: 60px;
+            display: flex; justify-content: flex-start; align-items: flex-start;
+            pointer-events: none; z-index: 10;
         }
 
         #score-panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            padding: 4px 8px;
-            font-size: 14px;
-            box-shadow: 0 0 10px var(--primary-glow);
-            border-radius: 0;
-            display: inline-block;
-            white-space: nowrap;
-            line-height: 1.1;
-            height: max-content;
+            background: var(--panel-bg); border: 1px solid var(--primary);
+            padding: 4px 8px; font-size: 14px; box-shadow: 0 0 10px var(--primary-glow);
+            display: inline-block; white-space: nowrap; line-height: 1.1;
         }
 
-        /* Ranking Mobile Integrado em Overlays */
         .mobile-ranking-container {
-            width: 100%;
-            max-width: 280px;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            padding: 8px;
-            font-size: 11px;
-            box-shadow: 0 0 10px var(--primary-glow);
-            margin-top: 10px;
-            box-sizing: border-box;
+            width: 100%; max-width: 280px; background: var(--panel-bg);
+            padding: 8px; font-size: 11px; margin-top: 10px; box-sizing: border-box;
         }
 
         .mobile-ranking-container h3 {
-            margin: 0 0 5px 0;
-            font-size: 12px;
-            text-align: center;
-            border-bottom: 1px dashed var(--primary);
+            margin: 0 0 5px 0; font-size: 12px; text-align: center;
             padding-bottom: 4px;
         }
 
-        #ranking-list-mobile-overlay {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 120px;
-            overflow-y: auto;
-        }
+        .ranking-list-mobile-ul { list-style: none; padding: 0; margin: 0 0 5px 0; max-height: 80px; overflow-y: auto; }
+        .ranking-list-mobile-ul li { display: flex; justify-content: space-between; margin-bottom: 3px; white-space: nowrap; }
 
-        #ranking-list-mobile-overlay li {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3px;
-            white-space: nowrap;
-        }
-
-        #hud-bottom {
-            position: absolute;
-            bottom: env(safe-area-inset-bottom, 25px);
-            left: 0;
-            width: 100%;
-            text-align: center;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .instructions {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6) !important;
-            background-color: transparent !important;
-            text-shadow: 1px 1px 2px #000; 
-            padding: 0;
-            display: inline-block;
-            font-weight: bold;
-            border: none !important;
-            box-shadow: none !important;
-            letter-spacing: 1px;
-        }
+        #hud-bottom { position: absolute; bottom: env(safe-area-inset-bottom, 25px); left: 0; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
+        .instructions { font-size: 11px; color: rgba(255, 255, 255, 0.6) !important; text-shadow: 1px 1px 2px #000; font-weight: bold; letter-spacing: 1px; }
 
         /* UI PC */
         #ui-pc {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 20px;
-            letter-spacing: 1px;
-            text-shadow: 0 0 8px var(--primary-glow);
-            pointer-events: none;
-            z-index: 10;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            padding: 10px 16px;
-            box-shadow: 0 0 15px var(--primary-glow);
-            display: none;
+            position: absolute; top: 20px; left: 20px; font-size: 20px; letter-spacing: 1px;
+            text-shadow: 0 0 8px var(--primary-glow); pointer-events: none;
+            background: var(--panel-bg); border: 1px solid var(--primary);
+            padding: 10px 16px; box-shadow: 0 0 15px var(--primary-glow); display: none;
+            z-index: 200;
         }
 
         #ranking-pc {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 250px;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            padding: 12px;
-            box-shadow: 0 0 15px var(--primary-glow);
-            z-index: 10;
-            pointer-events: none;
-            display: none;
+            position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 15px; display: none; z-index: 200; pointer-events: none;
         }
 
-        #ranking-pc h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            letter-spacing: 2px;
-            text-align: center;
-            border-bottom: 1px dashed var(--primary);
-            padding-bottom: 6px;
-            color: var(--primary);
+        .ranking-box {
+            width: 250px; background: var(--panel-bg); padding: 12px;
+            pointer-events: auto; box-sizing: border-box;
         }
 
-        #ranking-list-pc {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            font-size: 13px;
-            max-height: 250px;
-            overflow-y: auto;
-            pointer-events: auto;
-        }
+        .ranking-manual { border: 1px solid var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+        .ranking-manual h3 { margin: 0 0 10px 0; font-size: 14px; text-align: center; border-bottom: 1px dashed var(--primary); padding-bottom: 6px; color: var(--primary); }
+        
+        .ranking-ai { border: 1px solid var(--ai-color); box-shadow: 0 0 15px var(--ai-glow); color: var(--ai-color); }
+        .ranking-ai h3 { margin: 0 0 10px 0; font-size: 14px; text-align: center; border-bottom: 1px dashed var(--ai-color); padding-bottom: 6px; color: var(--ai-color); }
+        .ranking-ai li { text-shadow: 0 0 4px var(--ai-glow); }
 
-        #ranking-list-pc li {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            text-shadow: 0 0 4px var(--primary-glow);
-        }
+        .ranking-list-pc-ul { list-style: none; padding: 0; margin: 0; font-size: 13px; max-height: 150px; overflow-y: auto; pointer-events: auto; }
+        .ranking-list-pc-ul li { display: flex; justify-content: space-between; margin-bottom: 6px; text-shadow: 0 0 4px var(--primary-glow); }
 
-        #audio-btn-pc {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 10px 18px;
-            font-size: 13px;
-            letter-spacing: 1px;
-            font-family: 'Share Tech Mono', monospace;
-            cursor: pointer;
-            z-index: 200;
-            box-shadow: 0 0 10px var(--primary-glow);
-            display: none;
-        }
+        #audio-btn-pc { position: absolute; bottom: 20px; left: 20px; background: var(--panel-bg); border: 1px solid var(--primary); color: var(--primary); padding: 10px 18px; cursor: pointer; z-index: 200; display: none; }
         #audio-btn-pc:hover { background: var(--primary); color: var(--bg-dark); }
+        #instructions-pc { position: absolute; bottom: 20px; width: 100%; text-align: center; color: var(--primary); opacity: 0.6; pointer-events: none; z-index: 200; display: none; }
 
-        #instructions-pc {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            color: var(--primary);
-            opacity: 0.6;
-            font-size: 13px;
-            letter-spacing: 1px;
-            pointer-events: none;
-            z-index: 200;
-            text-shadow: 0 0 5px var(--primary-glow);
-            display: none;
-        }
-
-        /* Botão de Pause */
-        #pause-btn {
-            position: absolute;
-            top: env(safe-area-inset-top, 10px);
-            right: 10px;
-            width: 40px;
-            height: 38px;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            font-size: 16px;
-            z-index: 15;
-            cursor: pointer;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 0;
-            max-width: none;
-        }
-        #pause-btn:active { background: var(--primary); color: var(--bg-dark); }
-
-        /* Telas de Overlay */
+        /* Botoes e Inputs Gerais */
+        #pause-btn { position: absolute; top: env(safe-area-inset-top, 10px); right: 10px; width: 40px; height: 38px; background: var(--panel-bg); border: 1px solid var(--primary); color: var(--primary); font-size: 16px; z-index: 15; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        
         .overlay-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(1, 8, 4, 0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-            padding: 15px;
-            box-sizing: border-box;
-            overflow-y: auto;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(1, 8, 4, 0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
+            padding: 15px; box-sizing: border-box; overflow-y: auto;
         }
 
-        .overlay-screen h1 {
-            font-size: 32px;
-            color: var(--danger);
-            margin: 0 0 10px 0;
-            text-align: center;
-            text-shadow: 0 0 15px rgba(255, 51, 85, 0.5);
-        }
+        .overlay-screen h1 { font-size: 32px; color: var(--danger); margin: 0 0 10px 0; text-align: center; text-shadow: 0 0 15px rgba(255, 51, 85, 0.5); }
+        .overlay-screen p { font-size: 14px; text-align: center; margin-bottom: 12px; }
 
-        .overlay-screen p {
-            font-size: 14px;
-            text-align: center;
-            margin-bottom: 12px;
-        }
+        input { width: 100%; max-width: 280px; background: rgba(0, 255, 102, 0.05); border: 1px solid var(--primary); color: var(--primary); padding: 12px; font-size: 18px; font-family: 'Share Tech Mono', monospace; outline: none; text-align: center; margin-bottom: 12px; }
+        button { width: 100%; max-width: 280px; background: rgba(0, 255, 102, 0.15); border: 1px solid var(--primary); color: var(--primary); padding: 14px; font-size: 16px; font-family: 'Share Tech Mono', monospace; cursor: pointer; margin-top: 6px; }
+        button:active { background: var(--primary); color: var(--bg-dark); }
+        button:hover { background: rgba(0, 255, 102, 0.3); }
 
-        input {
-            width: 100%;
-            max-width: 280px;
-            background: rgba(0, 255, 102, 0.05);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 12px;
-            font-size: 18px;
-            font-family: 'Share Tech Mono', monospace;
-            outline: none;
-            text-align: center;
-            margin-bottom: 12px;
-            -webkit-appearance: none;
-            border-radius: 0;
-        }
-
-        input:focus {
-            box-shadow: 0 0 15px var(--primary-glow);
-            background: rgba(0, 255, 102, 0.1);
-        }
-
-        button {
-            width: 100%;
-            max-width: 280px;
-            background: rgba(0, 255, 102, 0.15);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 14px;
-            font-size: 16px;
-            font-family: 'Share Tech Mono', monospace;
-            margin-top: 6px;
-            font-weight: bold;
-            border-radius: 0;
-            cursor: pointer;
-        }
-
-        button:active {
-            background: var(--primary);
-            color: var(--bg-dark);
-        }
-
-        #error-msg {
-            color: var(--danger);
-            font-size: 12px;
-            margin-top: 10px;
-            min-height: 15px;
-        }
-
-        .stats-box {
-            background: rgba(0, 255, 102, 0.03);
-            border: 1px dashed var(--primary);
-            padding: 10px 12px;
-            margin: 5px 0;
-            width: 100%;
-            max-width: 280px;
-            text-align: left;
-            font-size: 13px;
-        }
-
+        .stats-box { background: rgba(0, 255, 102, 0.03); border: 1px dashed var(--primary); padding: 10px 12px; margin: 5px 0; width: 100%; max-width: 280px; text-align: left; font-size: 13px; }
         .stats-box span { color: var(--warning); float: right; }
+
+        /* Dev Overlay Custom CSS */
+        #dev-screen { z-index: 300; background: rgba(0, 10, 5, 0.98); }
+        #dev-code { width: 100%; max-width: 900px; height: 55vh; background: rgba(0,0,0,0.5); color: #0f6; border: 1px solid var(--primary); font-family: monospace; font-size: 14px; padding: 10px; resize: none; margin-bottom: 15px; }
+        .dev-controls { display: flex; gap: 10px; width: 100%; max-width: 900px; flex-wrap: wrap; justify-content: center; }
+        .dev-controls button { max-width: 180px; font-size: 14px; padding: 10px; }
+        #python-vector-display { font-size: 14px; color: #fff; margin-bottom: 15px; text-shadow: 0 0 5px var(--primary); text-align: center; }
     </style>
 </head>
 <body>
@@ -342,26 +136,30 @@
         <input type="text" id="nickname-input" placeholder="NICKNAME" maxlength="12" autocomplete="off">
         <input type="password" id="password-input" placeholder="SENHA" maxlength="20" autocomplete="off">
         <button id="start-btn">CONECTAR</button>
-        <div id="error-msg"></div>
+        <div id="error-msg" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
     </div>
 
     <!-- UI Mobile -->
     <button id="pause-btn" style="display: none;">❚❚</button>
-    <div id="hud-top" style="display: none;">
-        <div id="score-panel"><span id="score">0</span> TB</div>
-    </div>
-    <div id="hud-bottom" style="display: none;">
-        <div class="instructions">ARRASTAR = Guiar | 2 TOQUES = Dash</div>
-    </div>
+    <div id="hud-top" style="display: none;"><div id="score-panel"><span id="score">0</span> TB</div></div>
+    <div id="hud-bottom" style="display: none;"><div class="instructions">ARRASTAR = Guiar | 2 TOQUES = Dash</div></div>
 
     <!-- UI PC -->
     <div id="ui-pc">DADOS EXTRAÍDOS: <span id="score-pc">0</span> TB</div>
+    
     <div id="ranking-pc">
-        <h3>Ranking de Jogadores</h3>
-        <ul id="ranking-list-pc"><li>Carregando...</li></ul>
+        <div class="ranking-box ranking-manual">
+            <h3>Top Hackers (Manual)</h3>
+            <ul id="ranking-list-pc" class="ranking-list-pc-ul"><li>Carregando...</li></ul>
+        </div>
+        <div class="ranking-box ranking-ai">
+            <h3>Top Bots (IA)</h3>
+            <ul id="ranking-list-pc-ai" class="ranking-list-pc-ul"><li>Carregando...</li></ul>
+        </div>
     </div>
+    
     <button id="audio-btn-pc">PARAR.AUDIO()</button>
-    <div id="instructions-pc">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar (20 TB)</div>
+    <div id="instructions-pc">MOUSE = Guiar | ESPAÇO = Overclock | ESC = Pausar | CLIQUE ESQ = Atirar</div>
     
     <!-- Game Over Mobile -->
     <div id="game-over" class="overlay-screen" style="display: none;">
@@ -372,9 +170,15 @@
             <p>RECORDE GLOBAL: <span id="go-global-best">0</span></p>
         </div>
         <button id="restart-btn">REINICIAR INVASÃO</button>
-        <div class="mobile-ranking-container">
-            <h3>TOP HACKERS</h3>
-            <ul id="ranking-list-mobile-gameover"><li>Carregando...</li></ul>
+        <div style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px; margin-top:10px;">
+            <div class="mobile-ranking-container ranking-manual" style="margin-top:0;">
+                <h3>Top Hackers (Manual)</h3>
+                <ul id="ranking-list-mobile-gameover" class="ranking-list-mobile-ul"><li>Carregando...</li></ul>
+            </div>
+            <div class="mobile-ranking-container ranking-ai" style="margin-top:0;">
+                <h3>Top Bots (IA)</h3>
+                <ul id="ranking-list-mobile-gameover-ai" class="ranking-list-mobile-ul"><li>Carregando...</li></ul>
+            </div>
         </div>
     </div>
 
@@ -389,58 +193,97 @@
         <p>> Pressione [ ESPAÇO ] para reiniciar a invasão_</p>
     </div>
 
-    <!-- Tela de Pause (Mobile) -->
+    <!-- Tela de Pause -->
     <div id="pause-screen" class="overlay-screen" style="display: none;">
         <h1>PAUSADO</h1>
         <button id="resume-btn" style="display:none;">CONTINUAR INVASÃO</button>
         <button id="sound-btn" style="display:none;">SOM: LIGADO</button>
-        <div id="mobile-pause-rank" class="mobile-ranking-container" style="display:none;">
-            <h3>TOP HACKERS</h3>
-            <ul id="ranking-list-mobile-pause"><li>Carregando...</li></ul>
+        
+        <!-- Botão DEV -->
+        <button id="btn-dev-mode-pc" style="display:none; color: var(--warning); border-color: var(--warning);">[ PYTHON MODO DEV ]</button>
+
+        <div id="mobile-pause-rank" style="display:none; flex-direction:column; gap:10px; width:100%; max-width:280px; margin-top:15px;">
+            <div class="mobile-ranking-container ranking-manual" style="margin-top:0;">
+                <h3>Top Hackers</h3>
+                <ul id="ranking-list-mobile-pause" class="ranking-list-mobile-ul"><li>Carregando...</li></ul>
+            </div>
+            <div class="mobile-ranking-container ranking-ai" style="margin-top:0;">
+                <h3>Top Bots</h3>
+                <ul id="ranking-list-mobile-pause-ai" class="ranking-list-mobile-ul"><li>Carregando...</li></ul>
+            </div>
         </div>
-        <p id="pause-txt-pc" style="display:none; color: var(--primary);">>> Pressione [ ESC ] para retomar a invasão_</p>
+        <p id="pause-txt-pc" style="display:none; color: var(--primary); margin-top:20px;">>> Pressione [ ESC ] para retomar a invasão_</p>
+    </div>
+
+    <!-- Tela DEV / Algoritmo PYTHON -->
+    <div id="dev-screen" class="overlay-screen" style="display: none;">
+        <h2 style="color: #0f6;">>_ IDE PYTHON: TESTE DE POPULAÇÕES</h2>
+        <div id="python-vector-display">Aguardando Execução...</div>
+        <textarea id="dev-code" spellcheck="false"></textarea>
+        <div class="dev-controls">
+            <button id="dev-save-btn">SALVAR SCRIPT</button>
+            <button id="dev-run-btn">COMPILAR & EXECUTAR</button>
+            <button id="dev-stop-btn">PARAR</button>
+            <button id="dev-close-btn">FECHAR</button>
+        </div>
+        <p id="dev-status" style="color:var(--warning); margin-top:15px; font-size:14px; font-weight:bold;">Status: Inativo</p>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // CONFIGURACAO DO FIREBASE -----------------------
         const firebaseConfig = {
             apiKey: "AIzaSyDGBcZWWav3uxZBPalg9GKLolQH_J18L0s",
             authDomain: "cyber-hack-c0f4d.firebaseapp.com",
             projectId: "cyber-hack-c0f4d",
             storageBucket: "cyber-hack-c0f4d.firebasestorage.app",
             messagingSenderId: "596437872153",
-            appId: "1:596437872153:web:44c704bd8e0ae033d10488",
-            measurementId: "G-MXY6VMK1N2"
+            appId: "1:596437872153:web:44c704bd8e0ae033d10488"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // REMOVIDO: db.settings() causava travamento em múltiplas conexões simultâneas
-        // O Firestore v9 compat já gerencia a conexão automaticamente.
-
-        // Detecção de Dispositivo (Mobile vs PC)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800;
 
         let myNickname = "";
         let playerDocRef = null;
+        
         let personalBest = 0;
         let globalBest = 0;
-        let gameState = 'LOGIN';
+        let personalAiBest = 0;
+        let globalAiBest = 0;
 
+        let gameState = 'LOGIN';
+        
+        // VARIAVEIS DA IA, POPULACAO E HISTORICO (Avaliação Múltipla)
+        let isAutoPlaying = false; 
+        let pyodideReady = false;
+        
+        let aiGeneration = 0;
+        let currentAiIndex = 0;
+        let aiSubTestIndex = 0; // Controla qual dos 5 testes o indivíduo atual está rodando
+        const EVAL_TRIALS = 5;  // Número de testes por indivíduo para tirar a média
+        
+        let aiPopulation = []; 
+        let aiFitnessAccumulator = []; // Acumula o fitness dos 5 testes
+        let aiFitnessResults = [];     // Guarda as médias finais de cada indivíduo da geração
+
+        // O vetor que está "jogando" na tela no momento (10 Posições)
+        let currentPythonVector = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0];
+
+        // CONFIGURACAO DE AUDIO FIXA -----------------------
         let soundEnabled = true;
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
+        let audioInterval = null;
 
         function playSound(type) {
             if (!soundEnabled || !audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
-            
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination);
             
             if (type === 'die') {
                 const filter = audioCtx.createBiquadFilter();
@@ -451,17 +294,14 @@
                 filter.frequency.setValueAtTime(300, audioCtx.currentTime);
                 gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
-                osc.disconnect();
-                osc.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination);
+                osc.disconnect(); osc.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.8);
             }
         }
 
-        let isAudioPlaying = false;
-        let audioInterval = null;
         function startSynthMusic() {
-            if (!audioCtx || isAudioPlaying || !soundEnabled) return;
-            audioCtx.resume();
+            if (!audioCtx || audioInterval || !soundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             const notes = [220, 220, 293.66, 329.63, 220, 196, 220, 146.83];
             let step = 0;
             audioInterval = setInterval(() => {
@@ -479,17 +319,29 @@
                 osc.start(); osc.stop(audioCtx.currentTime + 0.15);
                 step++;
             }, 130);
-            isAudioPlaying = true;
         }
 
         function stopSynthMusic() {
-            if (audioInterval) {
-                clearInterval(audioInterval);
-                audioInterval = null;
-            }
-            isAudioPlaying = false;
+            if (audioInterval) { clearInterval(audioInterval); audioInterval = null; }
+            if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
         }
 
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                if (gameState === 'PLAYING') startSynthMusic();
+            } else {
+                stopSynthMusic();
+            }
+            document.getElementById('audio-btn-pc').innerText = soundEnabled ? "PARAR.AUDIO()" : "INICIAR.AUDIO()";
+            document.getElementById('sound-btn').innerText = soundEnabled ? "SOM: LIGADO" : "SOM: DESLIGADO";
+        }
+
+        document.getElementById('audio-btn-pc').addEventListener('click', toggleAudio);
+        document.getElementById('sound-btn').addEventListener('click', toggleAudio);
+
+        // MOTOR DO JOGO -----------------------
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
         
@@ -499,20 +351,25 @@
         const DASH_SPEED = isMobile ? 8.0 : 12.0;
         const MAGNET_RADIUS = isMobile ? 60 : 90; 
         const GRID_SIZE = 50;        
-        const MAX_FOOD = isMobile ? 1500 : 300;       
-        const MAX_BOTS = isMobile ? 16 : 16;         
+        const MAX_FOOD = isMobile ? 150 : 300;        
+        
+        // VARIÁVEL MODIFICADA: População agora pode crescer
+        let MAX_BOTS = isMobile ? 8 : 16;           
 
-        const player = { x: 0, y: 0, radius: isMobile ? 8 : 10, speed: BASE_SPEED, segments: [], score: 0 };
+        const player = { x: 0, y: 0, radius: isMobile ? 8 : 10, speed: BASE_SPEED, angle: 0, segments: [], score: 0 };
         let camera = { x: 0, y: 0 };
         let target = { x: 0, y: 0 };
         let mouseX = window.innerWidth / 2;
         let mouseY = window.innerHeight / 2;
         let isDashing = false;
+        
+        let matchTime = 0; // Temporizador global para evolução gradual da IA in-game
 
         let tapTimes = [];
         const DASH_TAP_WINDOW = 350; 
         let projectiles = [];
         let autoShootTimer = 0;
+        let lastFoodTime = Date.now();
 
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -521,8 +378,9 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // Controles de Input
         canvas.addEventListener('touchstart', (e) => {
-            if (!isMobile || gameState !== 'PLAYING') return;
+            if (!isMobile || gameState !== 'PLAYING' || isAutoPlaying) return;
             e.preventDefault(); 
             const now = Date.now();
             tapTimes.push(now);
@@ -531,84 +389,307 @@
             if (tapTimes.length >= 2 && (now - tapTimes[tapTimes.length - 2] < DASH_TAP_WINDOW)) {
                 isDashing = true;
             } else if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                target.x = camera.x + touch.clientX;
-                target.y = camera.y + touch.clientY;
+                target.x = camera.x + e.touches[0].clientX;
+                target.y = camera.y + e.touches[0].clientY;
             }
         }, { passive: false });
-
         canvas.addEventListener('touchmove', (e) => {
-            if (!isMobile || gameState !== 'PLAYING') return;
+            if (!isMobile || gameState !== 'PLAYING' || isAutoPlaying) return;
             e.preventDefault();
-            const touch = e.touches[0];
-            target.x = camera.x + touch.clientX;
-            target.y = camera.y + touch.clientY;
+            target.x = camera.x + e.touches[0].clientX;
+            target.y = camera.y + e.touches[0].clientY;
         }, { passive: false });
-
-        canvas.addEventListener('touchend', (e) => {
-            if (!isMobile) return;
-            e.preventDefault();
-            if (e.touches.length === 0) isDashing = false;
-        }, { passive: false });
-
-        canvas.addEventListener('touchcancel', () => { if(isMobile) isDashing = false; });
+        canvas.addEventListener('touchend', (e) => { if (isMobile) { e.preventDefault(); if (e.touches.length === 0) isDashing = false; } }, { passive: false });
 
         window.addEventListener('mousemove', (e) => {
-            if (isMobile || gameState !== 'PLAYING') return;
+            if (isMobile || gameState !== 'PLAYING' || isAutoPlaying) return;
             mouseX = e.clientX; mouseY = e.clientY;
         });
 
         window.addEventListener('keydown', (e) => {
-            if (isMobile) return;
             if (e.code === 'Escape') {
                 if (gameState === 'PLAYING') {
                     gameState = 'PAUSED';
                     document.getElementById('pause-screen').style.display = 'flex';
-                    document.getElementById('pause-txt-pc').style.display = 'block';
+                    if (isMobile) {
+                        document.getElementById('mobile-pause-rank').style.display = 'flex';
+                    } else {
+                        document.getElementById('pause-txt-pc').style.display = 'block';
+                        document.getElementById('btn-dev-mode-pc').style.display = 'block';
+                    }
                 } else if (gameState === 'PAUSED') {
                     gameState = 'PLAYING';
                     document.getElementById('pause-screen').style.display = 'none';
-                    document.getElementById('pause-txt-pc').style.display = 'none';
+                    if (isMobile) {
+                        document.getElementById('mobile-pause-rank').style.display = 'none';
+                    }
                 }
             }
             if (gameState !== 'PLAYING' && gameState !== 'GAMEOVER') return;
-            if (e.code === 'Space') {
+            if (e.code === 'Space' && !isAutoPlaying) {
                 e.preventDefault();
                 if (gameState === 'GAMEOVER') resetGame();
                 else if (gameState === 'PLAYING') isDashing = true;
             }
         });
-
-        window.addEventListener('keyup', (e) => {
-            if (!isMobile && e.code === 'Space') isDashing = false;
-        });
-
+        window.addEventListener('keyup', (e) => { if (!isMobile && e.code === 'Space') isDashing = false; });
         window.addEventListener('mousedown', (e) => {
-            if (isMobile || e.button !== 0 || gameState !== 'PLAYING' || player.score < 20) return;
+            if (isMobile || e.button !== 0 || gameState !== 'PLAYING' || player.score < 20 || isAutoPlaying) return;
             player.score -= 20;
             document.getElementById('score-pc').innerText = Math.floor(player.score);
             const angle = Math.atan2(target.y - player.y, target.x - player.x);
-            projectiles.push({
-                x: player.x, y: player.y,
-                vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15,
-                life: 80, text: Math.random() < 0.5 ? '0' : '1'
-            });
+            projectiles.push({ x: player.x, y: player.y, vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, life: 80, text: Math.random() < 0.5 ? '0' : '1' });
             if (player.segments.length > BASE_SEGMENTS) { player.segments.pop(); player.segments.pop(); }
         });
 
+        // ----------------------------------------------------
+        // PYTHON / PYODIDE INTEGRAÇÃO (MODO DEV - MATRIZ DE POPULAÇÕES)
+        // ----------------------------------------------------
+        const devDefaultCode = `"""
+================================================================================
+MANUAL DO ALGORITMO GENÉTICO - COMO FUNCIONA A OTIMIZAÇÃO DA SUA IA
+================================================================================
+
+OBJETIVO:
+Você está criando a "evolução" dos seus bots. Este script é o "motor genético" 
+que o jogo chama automaticamente sempre que uma geração (partida) termina. 
+O seu objetivo é usar os dados da partida anterior para criar e retornar a 
+PRÓXIMA geração de bots, esperando que eles aprendam e sejam melhores.
+
+COMO O JOGO SE COMUNICA COM ESTE SCRIPT:
+O motor do jogo sempre chamará a função optimize(history_fitness, history_vectors).
+
+1. OS DADOS QUE VOCÊ RECEBE (Entradas / Parâmetros da função):
+   - history_fitness: Uma lista com as pontuações (scores) que cada bot obteve 
+     na última geração.
+     Exemplo: [150.5, 45.0, 300.2, ...]
+   - history_vectors: Uma lista contendo o "DNA" (vetores de 10 parâmetros) de 
+     cada bot, na mesma ordem das pontuações.
+     Exemplo: [[1.2, 5.0, ...], [0.5, 3.2, ...], ...]
+     
+   *Nota: Na Geração 0 (a primeiríssima rodada), essas listas chegarão vazias, 
+   pois nenhum bot foi testado ainda. O seu código deve lidar com isso criando 
+   uma população inicial aleatória.
+
+2. O QUE VOCÊ DEVE DEVOLVER (Saída / Return):
+   - A função DEVE retornar uma nova lista de listas contendo a população da 
+     próxima geração. 
+   - O tamanho dessa lista deve ser igual à variável POPULATION_SIZE (ex: 30 bots).
+   - Cada bot dentro da lista deve ser representado por um vetor com exatamente 
+     10 posições (números decimais variando de 0.0 a 10.0).
+
+O VETOR DE DNA (Os 10 Parâmetros que controlam o bot):
+Os números que você gera ditam o comportamento do bot na arena:
+[0] Fome (Atração pela comida)        [1] Fuga (Medo/Repulsão dos bots)
+[2] Agressividade (Atirar/Caçar)      [3] Velocidade (Custos altos em score!)
+[4] Mov. Circular (5.0 é o neutro)    [5] Mov. Reto (Inércia)
+[6] Visão Comida                      [7] Visão Ameaças
+[8] Conservação                       [9] Massa/Peso
+
+COMO O EXEMPLO ABAIXO FUNCIONA:
+- Geração 0: Cria 30 bots com valores totalmente aleatórios.
+- Próximas Gerações:
+  1. Elitismo: Salva o melhor bot da última rodada e o copia intocado para a próxima.
+  2. Seleção: Escolhe "pais" através de torneios (seleciona alguns bots e pega o melhor).
+  3. Cruzamento: Mistura genes do pai e da mãe (50% de chance para cada).
+  4. Mutação: Adiciona uma pequena chance (20%) de alterar aleatoriamente um gene 
+     para garantir que a IA continue descobrindo novas táticas.
+================================================================================
+"""
+
+# DEFINA O TAMANHO DA SUA POPULAÇÃO A SEGUIR (30 É O PADRÃO, MAS PODE SER MAIOR OU MENOR):
+POPULATION_SIZE = 30
+
+import random
+
+def selecao_por_torneio(populacao_avaliada, tamanho_torneio=3):
+    """
+    Sorteia 'k' indivíduos aleatórios da população e retorna o vetor do vencedor.
+    Isso mantém a diversidade alta, evitando que só o Top 1 domine a genética.
+    """
+    torneio = random.sample(populacao_avaliada, k=min(tamanho_torneio, len(populacao_avaliada)))
+    torneio.sort(key=lambda x: x[0], reverse=True)
+    return torneio[0][1]
+
+def optimize(history_fitness, history_vectors):
+    fits = list(history_fitness)
+    vecs = [list(v) for v in history_vectors]
+    
+    nova_populacao = []
+    
+    # === GERAÇÃO 0 (Início da simulação) ===
+    if not fits:
+        for _ in range(POPULATION_SIZE):
+            # Cria a primeira geração de bots com parâmetros aleatórios de 0.0 a 10.0
+            individuo = [random.uniform(0.0, 10.0) for _ in range(10)]
+            nova_populacao.append(individuo)
+        return nova_populacao
+        
+    # === GERAÇÕES SEGUINTES ===
+    # 1. Agrupar Vetor e Fitness em pares e ordenar do melhor para o pior
+    populacao_avaliada = list(zip(fits, vecs))
+    populacao_avaliada.sort(key=lambda x: x[0], reverse=True)
+    
+    # 2. Elitismo Restrito: Salva apenas o absoluto melhor (Top 1) da última partida
+    melhor_vetor = populacao_avaliada[0][1]
+    nova_populacao.append(list(melhor_vetor))
+    
+    # 3. Cruzamento e Mutação para preencher o resto da nova população
+    while len(nova_populacao) < POPULATION_SIZE:
+        
+        # Seleciona dois pais diferentes usando o método de torneio
+        pai = selecao_por_torneio(populacao_avaliada)
+        mae = selecao_por_torneio(populacao_avaliada)
+        
+        # A base do filho inicializa com 10 posições zeradas
+        filho = [0.0] * 10
+        
+        # O laço itera sobre todos os 10 genes comportamentais
+        for i in range(10):
+            # Crossover Uniforme: 50% de chance de herdar o gene do pai ou da mãe
+            if random.random() < 0.5:
+                gene = pai[i]
+            else:
+                gene = mae[i]
+            
+            # Mutação Gaussiana: 20% de chance do gene sofrer mutação
+            if random.random() < 0.20:
+                # random.gauss(0, 1.5) cria variações. 
+                # A maioria será próxima de zero (ajuste fino), raras serão grandes (exploração radical).
+                mutacao = random.gauss(0, 1.5)
+                gene += mutacao
+                
+            # Clampa os valores rigorosamente entre 0.0 e 10.0 para respeitar as regras do jogo
+            filho[i] = max(0.0, min(10.0, gene))
+            
+        nova_populacao.append(filho)
+        
+    return nova_populacao
+`;
+
+        const devCodeArea = document.getElementById('dev-code');
+        devCodeArea.value = localStorage.getItem('dev_script_py') || devDefaultCode;
+
+        function updatePythonDisplay() {
+            let v = currentPythonVector.map(n => n.toFixed(1));
+            document.getElementById('python-vector-display').innerText = 
+                `Geração: ${aiGeneration} | Indivíduo: ${currentAiIndex + 1}/${aiPopulation.length || '?'} (Teste ${aiSubTestIndex + 1}/${EVAL_TRIALS}) \n Vetor Atual: [${v.join(', ')}]`;
+        }
+
+        async function setupPyodide() {
+            if (pyodideReady) return;
+            const statusLabel = document.getElementById('dev-status');
+            statusLabel.innerText = "Status: Baixando Motor Python (Aguarde...)";
+            statusLabel.style.color = "var(--warning)";
+            try {
+                window.pyodide = await loadPyodide();
+                pyodideReady = true;
+                statusLabel.innerText = "Status: Motor Python Carregado.";
+                statusLabel.style.color = "var(--primary)";
+            } catch (e) {
+                statusLabel.innerText = "Erro ao baixar Python. Tente novamente.";
+                statusLabel.style.color = "var(--danger)";
+            }
+        }
+
+        document.getElementById('btn-dev-mode-pc').addEventListener('click', () => {
+            document.getElementById('dev-screen').style.display = 'flex';
+        });
+
+        document.getElementById('dev-close-btn').addEventListener('click', () => {
+            document.getElementById('dev-screen').style.display = 'none';
+        });
+
+        document.getElementById('dev-save-btn').addEventListener('click', () => {
+            localStorage.setItem('dev_script_py', devCodeArea.value);
+            document.getElementById('dev-status').innerText = "Script salvo no LocalStorage com sucesso!";
+            document.getElementById('dev-status').style.color = "var(--primary)";
+        });
+
+        document.getElementById('dev-run-btn').addEventListener('click', async () => {
+            localStorage.setItem('dev_script_py', devCodeArea.value);
+            const statusLabel = document.getElementById('dev-status');
+            
+            if (!pyodideReady) { await setupPyodide(); }
+            
+            try {
+                window.pyodide.runPython(devCodeArea.value);
+                
+                let pyFit = window.pyodide.toPy([]);
+                let pyVec = window.pyodide.toPy([]);
+                window.pyodide.globals.set("test_fit", pyFit);
+                window.pyodide.globals.set("test_vec", pyVec);
+                
+                let testRes = window.pyodide.runPython("optimize(test_fit, test_vec)");
+                let parsed = testRes.toJs(); 
+                
+                pyFit.destroy(); pyVec.destroy(); if(testRes.destroy) testRes.destroy();
+                
+                let newPop = [];
+                let jsArray = Array.from(parsed);
+                for(let i=0; i<jsArray.length; i++) {
+                    let vec = Array.from(jsArray[i]);
+                    if (vec.length === 10) {
+                        newPop.push([
+                            Math.max(0, Math.min(10, Number(vec[0]))),
+                            Math.max(0, Math.min(10, Number(vec[1]))),
+                            Math.max(0, Math.min(10, Number(vec[2]))),
+                            Math.max(0, Math.min(10, Number(vec[3]))),
+                            Math.max(0, Math.min(10, Number(vec[4]))),
+                            Math.max(0, Math.min(10, Number(vec[5]))),
+                            Math.max(0, Math.min(10, Number(vec[6]))),
+                            Math.max(0, Math.min(10, Number(vec[7]))),
+                            Math.max(0, Math.min(10, Number(vec[8]))),
+                            Math.max(0, Math.min(10, Number(vec[9])))
+                        ]);
+                    }
+                }
+
+                if (newPop.length === 0) throw new Error("A função deve retornar Matriz de vetores válidos (10 posições).");
+
+                isAutoPlaying = true;
+                statusLabel.innerText = "Status: IA PYTHON RODANDO (FAST FORWARD)!";
+                statusLabel.style.color = "#00ff66";
+                document.getElementById('dev-screen').style.display = 'none';
+                document.getElementById('pause-screen').style.display = 'none';
+                if (isMobile) document.getElementById('mobile-pause-rank').style.display = 'none';
+                
+                aiGeneration = 1;
+                aiPopulation = newPop;
+                aiFitnessResults = [];
+                aiFitnessAccumulator = Array(newPop.length).fill(0);
+                currentAiIndex = 0;
+                aiSubTestIndex = 0;
+                
+                currentPythonVector = aiPopulation[0];
+                updatePythonDisplay();
+                resetGame();
+            } catch(e) {
+                statusLabel.innerText = "ERRO PYTHON: " + e.message;
+                statusLabel.style.color = "var(--danger)";
+            }
+        });
+
+        document.getElementById('dev-stop-btn').addEventListener('click', () => {
+            isAutoPlaying = false;
+            document.getElementById('dev-status').innerText = "Status: IA PARADA (Controle Manual)";
+            document.getElementById('dev-status').style.color = "var(--warning)";
+        });
+
+
+        // ----------------------------------------------------
+        // CONEXAO E INICIALIZACAO FIREBASE
+        // ----------------------------------------------------
         document.getElementById('start-btn').addEventListener('click', async () => {
             const nick = document.getElementById('nickname-input').value.trim().toUpperCase();
             const pass = document.getElementById('password-input').value.trim();
             const errorMsg = document.getElementById('error-msg');
             const btn = document.getElementById('start-btn');
 
-            if (nick.length < 3 || pass.length < 3) {
-                errorMsg.innerText = "Mínimo de 3 caracteres."; return;
-            }
+            if (nick.length < 3 || pass.length < 3) { errorMsg.innerText = "Mínimo de 3 caracteres."; return; }
             errorMsg.innerText = "Conectando ao banco de dados...";
             btn.disabled = true;
 
-            // Timeout de segurança para não travar em "Conectando..."
             let loginTimeout = setTimeout(() => {
                 errorMsg.innerText = "Tempo de conexão esgotado. Recarregue e tente novamente.";
                 btn.disabled = false;
@@ -616,75 +697,30 @@
 
             try {
                 const docRef = db.collection("players").doc(nick);
-                
-                // Força leitura do servidor para evitar cache desatualizado
                 const doc = await docRef.get({ source: 'server' });
-                
                 clearTimeout(loginTimeout);
                 
                 if (doc.exists) {
                     if (doc.data().password === pass) {
                         playerDocRef = docRef;
-                        initGameData(nick, docRef, doc.data().bestScore || 0);
-                    } else {
-                        errorMsg.innerText = "Senha incorreta!";
-                        btn.disabled = false;
-                    }
+                        initGameData(nick, docRef, doc.data());
+                    } else { errorMsg.innerText = "Senha incorreta!"; btn.disabled = false; }
                 } else {
-                    await docRef.set({
-                        nickname: nick, password: pass, score: 0, bestScore: 0, isOnline: true,
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    await docRef.set({ nickname: nick, password: pass, score: 0, aiScore: 0, bestScore: 0, bestAiScore: 0, isOnline: true, lastSeen: firebase.firestore.FieldValue.serverTimestamp() });
                     playerDocRef = docRef;
-                    initGameData(nick, docRef, 0);
+                    initGameData(nick, docRef, { bestScore: 0, bestAiScore: 0 });
                 }
             } catch (e) {
                 clearTimeout(loginTimeout);
-                errorMsg.innerText = `Servidor Recusou: ${e.message}`;
-                console.error("Erro de conexão:", e);
-                btn.disabled = false;
+                errorMsg.innerText = `Servidor Recusou: ${e.message}`; btn.disabled = false;
             }
         });
 
-        document.getElementById('pause-btn').addEventListener('click', () => {
-            if (isMobile && gameState === 'PLAYING') {
-                gameState = 'PAUSED';
-                document.getElementById('pause-screen').style.display = 'flex';
-                document.getElementById('pause-btn').style.display = 'none';
-                document.getElementById('resume-btn').style.display = 'block';
-                document.getElementById('sound-btn').style.display = 'block';
-                document.getElementById('mobile-pause-rank').style.display = 'block';
-            }
-        });
+        function initGameData(nick, docRef, data) {
+            myNickname = nick; playerDocRef = docRef; 
+            personalBest = data.bestScore || 0;
+            personalAiBest = data.bestAiScore || 0;
 
-        document.getElementById('resume-btn').addEventListener('click', () => {
-            gameState = 'PLAYING';
-            document.getElementById('pause-screen').style.display = 'none';
-            document.getElementById('pause-btn').style.display = 'flex';
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            if (soundEnabled && !isAudioPlaying) startSynthMusic();
-        });
-
-        document.getElementById('sound-btn').addEventListener('click', (e) => {
-            soundEnabled = !soundEnabled;
-            e.target.innerText = soundEnabled ? "SOM: LIGADO" : "SOM: DESLIGADO";
-            if(soundEnabled) startSynthMusic();
-            else stopSynthMusic();
-        });
-
-        const audioBtnPc = document.getElementById('audio-btn-pc');
-        audioBtnPc.addEventListener('click', () => {
-            if (!audioCtx) return;
-            soundEnabled = !soundEnabled;
-            if(soundEnabled) startSynthMusic();
-            else stopSynthMusic();
-            audioBtnPc.innerText = soundEnabled ? "PARAR.AUDIO()" : "INICIAR.AUDIO()";
-        });
-
-        function initGameData(nick, docRef, best) {
-            myNickname = nick;
-            playerDocRef = docRef;
-            personalBest = best;
             document.getElementById('login-screen').style.display = 'none';
             
             if (isMobile) {
@@ -693,23 +729,19 @@
                 document.getElementById('pause-btn').style.display = 'flex';
             } else {
                 document.getElementById('ui-pc').style.display = 'block';
-                document.getElementById('ranking-pc').style.display = 'block';
+                document.getElementById('ranking-pc').style.display = 'flex';
                 document.getElementById('audio-btn-pc').style.display = 'block';
                 document.getElementById('instructions-pc').style.display = 'block';
             }
 
-            if (soundEnabled) startSynthMusic();
-            resetGame();
-            initRealtimeRanking();
-            
-            heartbeat(); 
-            setInterval(heartbeat, 10000); // Reduzido para 10s para manter status mais atual
+            if (soundEnabled && audioCtx.state === 'running') startSynthMusic();
+            resetGame(); initRealtimeRanking(); heartbeat(); 
+            setInterval(heartbeat, 10000);
         }
+
         document.getElementById('restart-btn').addEventListener('click', () => resetGame());
 
-        let foods = [];
-        let particles = [];
-        let bots = [];
+        let foods = [], particles = [], bots = [];
         const codeSymbols = [
             { char: '0', color: '#88ccaa' }, { char: '1', color: '#88ccaa' },
             { char: '{', color: '#ffcc00' }, { char: '}', color: '#ffcc00' },
@@ -727,35 +759,34 @@
                 const dist = maxDim * 0.7 + Math.random() * (maxDim * 0.4);
                 this.x = player.x + Math.cos(ang) * dist;
                 this.y = player.y + Math.sin(ang) * dist;
-                
                 this.radius = isMobile ? 8 : 10;
-                this.speed = (isMobile ? 4.0 : 6.0) + Math.random() * 0.5;
-                this.baseSpeed = this.speed;
+                this.baseSpeed = (isMobile ? 4.0 : 6.0) + Math.random() * 0.5;
                 this.angle = ang + Math.PI;
                 this.segments = Array(10).fill().map(() => ({x: this.x, y: this.y}));
                 
-                this.genome = genome || [
-                    (Math.random() * 2) + 1.5, Math.random() * 2, 
-                    (Math.random() - 0.5), Math.random(), 
-                    (Math.random() - 0.5), (Math.random() - 0.5), 
-                    Math.random(), Math.random()
+                // GENOMA MODIFICADO PARA INCLUIR OVERCLOCK (Índice 8) e maior agressividade base
+                this.genome = genome || [ 
+                    (Math.random() * 2) + 1.5, // [0] Atração Comida
+                    Math.random() * 2,         // [1] Medo / Fuga
+                    (Math.random() * 2) + 1.0, // [2] Agressividade (Aumentada base de -0.5 para 1.0)
+                    Math.random(),             // [3] Distância multiplicador
+                    (Math.random() - 0.5),     // [4] Órbita
+                    (Math.random() - 0.5),     // [5] Inércia
+                    1.0,                       // [6] Multiplicador de velocidade
+                    0.25,                      // [7] Limite de taxa de curva
+                    Math.random() * 3.0        // [8] Limiar de Overclock (Distância para o player)
                 ];
                 
-                this.score = 0;
-                this.lifespan = 0;
-                this.damageDealtToPlayer = 0;
-                this.dead = false;
+                this.speed = this.baseSpeed * (this.genome.length > 6 ? this.genome[6] : 1.0);
+                this.score = 0; this.lifespan = 0; this.damageDealtToPlayer = 0; this.dead = false;
+                
+                // LÓGICA DE OVERCLOCK (DASH)
                 this.isDashing = false;
+                this.dashTimer = 0;
+                this.dashCooldown = 0;
             }
 
-            getFitness() { 
-                return Math.floor(
-                    this.score * 10 + 
-                    this.lifespan * 0.1 + 
-                    this.segments.length * 15 + 
-                    (this.damageDealtToPlayer * 500)
-                ); 
-            }
+            getFitness() { return Math.floor(this.score * 10 + this.lifespan * 0.1 + this.segments.length * 15 + (this.damageDealtToPlayer * 500)); }
 
             update() {
                 if (this.dead) return;
@@ -770,8 +801,7 @@
                     for (let seg of this.segments) { seg.x = this.x; seg.y = this.y; }
                 }
 
-                let nearestFood = null; 
-                let minDist = 99999;
+                let nearestFood = null, minDist = 99999;
                 for (let f of foods) {
                     let d = Math.hypot(f.x - this.x, f.y - this.y);
                     if (d < minDist) { minDist = d; nearestFood = f; }
@@ -789,14 +819,38 @@
                             (playerAngle * (this.genome[2] + 0.5)) + ((1 / (playerDist + 1)) * this.genome[3]) +
                             (orbitAngle * (this.genome[4] || 1)) + (Math.sin(this.angle) * (this.genome[5] || 0.2));
 
-                this.angle += Math.max(-0.25, Math.min(0.25, steer));
-
+                const maxTurn = this.genome.length > 7 ? this.genome[7] : 0.25;
+                this.angle += Math.max(-maxTurn, Math.min(maxTurn, steer));
                 this.radius = (isMobile ? 8 : 10) + Math.min(15, Math.floor(this.score / 50));
+                
+                // SISTEMA DE OVERCLOCK PARA O BOT
+                if (this.dashCooldown > 0) this.dashCooldown--;
+                
+                if (this.dashTimer > 0) {
+                    this.dashTimer--;
+                    this.isDashing = true;
+                    this.score -= 0.5; // Custo de pontuação igual ao do player
+                    if (this.score < 0) this.score = 0;
+                    if (this.dashTimer <= 0) this.isDashing = false;
+                } else {
+                    this.isDashing = false;
+                    let dashThreshold = this.genome.length > 8 ? (this.genome[8] * 100) : 0;
+                    // Ativa overclock se perto o suficiente e com recursos
+                    if (playerDist < dashThreshold && this.dashCooldown <= 0 && this.score > 5) {
+                        this.dashTimer = 40; 
+                        this.dashCooldown = 150; 
+                    }
+                }
+                
+                this.speed = this.baseSpeed * (this.genome.length > 6 ? this.genome[6] : 1.0);
+                if (this.isDashing) this.speed *= 1.6; // Bônus de velocidade do dash
+
                 this.x += Math.cos(this.angle) * this.speed;
                 this.y += Math.sin(this.angle) * this.speed;
 
                 let px = this.x, py = this.y;
-                const botSpacing = this.radius * 0.9; // Espaçamento dinâmico
+                const botSpacing = this.isDashing ? this.radius * 1.5 : this.radius * 0.9; 
+                
                 for (let seg of this.segments) {
                     let d = Math.hypot(px - seg.x, py - seg.y);
                     if (d > botSpacing) {
@@ -810,7 +864,11 @@
                     if (Math.hypot(this.x - foods[i].x, this.y - foods[i].y) < this.radius + 10) {
                         foods.splice(i, 1);
                         this.score += 30;
-                        this.segments.push({...this.segments[this.segments.length-1]});
+                        const maxBotSegs = 60;
+                        const targetBotSegs = 10 + Math.floor(this.score / 30);
+                        if(this.segments.length < targetBotSegs && this.segments.length < maxBotSegs) {
+                            this.segments.push({...this.segments[this.segments.length-1]});
+                        }
                         if(foods.length < MAX_FOOD) spawnFood();
                     }
                 }
@@ -836,38 +894,87 @@
             genePool.sort((a, b) => b.fitness - a.fitness);
             const parentA = genePool[Math.floor(Math.random() * Math.min(5, genePool.length))].genome;
             const parentB = genePool[Math.floor(Math.random() * Math.min(5, genePool.length))].genome;
+            
             const childGenome = parentA.map((gene, i) => Math.random() < 0.5 ? gene : parentB[i]);
             for (let i = 0; i < childGenome.length; i++) {
                 if (Math.random() < 0.3) childGenome[i] += (Math.random() - 0.5) * 0.5;
             }
+            
+            if (childGenome.length > 6) {
+                childGenome[2] += 0.3; // Aumentado drasticamente a agressividade ganha por geração
+                childGenome[6] += 0.05; 
+                childGenome[7] += 0.005; 
+                if (childGenome.length > 8) childGenome[8] += 0.2; // Aumenta a propensão de usar Overclock
+
+                childGenome[6] = Math.min(3.0, childGenome[6]);
+                childGenome[7] = Math.min(0.4, childGenome[7]);
+                if (childGenome.length > 8) childGenome[8] = Math.min(8.0, childGenome[8]);
+            }
+            
             return childGenome;
+        }
+
+        function evolveLiveBotsGA() {
+            if (bots.length < 2) return;
+            
+            bots.forEach(b => {
+                b.currentFitness = (b.score * 10) + (b.lifespan * 0.1) + (b.segments.length * 15) + (b.damageDealtToPlayer * 500);
+                let distToPlayer = Math.hypot(player.x - b.x, player.y - b.y);
+                if (distToPlayer < 500) {
+                    b.currentFitness += (500 - distToPlayer) * 2; 
+                }
+            });
+
+            bots.sort((a, b) => b.currentFitness - a.currentFitness);
+            const eliteCount = Math.ceil(bots.length / 2);
+            const bestBots = bots.slice(0, eliteCount);
+
+            for (let i = eliteCount; i < bots.length; i++) {
+                const parentA = bestBots[Math.floor(Math.random() * bestBots.length)].genome;
+                const parentB = bestBots[Math.floor(Math.random() * bestBots.length)].genome;
+
+                let childGenome = parentA.map((g, idx) => Math.random() < 0.5 ? g : parentB[idx]);
+
+                for (let j = 0; j < childGenome.length; j++) {
+                    if (Math.random() < 0.3) {
+                        childGenome[j] += (Math.random() - 0.5) * 0.4;
+                    }
+                }
+
+                childGenome[2] += 0.4; // Agressividade aumenta bastante in-game
+                childGenome[6] += 0.05; // Multiplicador de Velocidade
+                childGenome[7] += 0.01; // Agilidade de curva
+                if (childGenome.length > 8) childGenome[8] += 0.2; // Propensão a Overclock
+                
+                childGenome[6] = Math.min(3.0, childGenome[6]); 
+                childGenome[7] = Math.min(0.4, childGenome[7]); 
+                if (childGenome.length > 8) childGenome[8] = Math.min(8.0, childGenome[8]);
+
+                bots[i].genome = childGenome;
+                bots[i].lifespan = 0; 
+                
+                spawnParticles(bots[i].x, bots[i].y, '#00ccff', 15);
+            }
         }
 
         function manageBots() {
             bots = bots.filter(b => !b.dead);
-            while (bots.length < MAX_BOTS) {
-                bots.push(new Bot(createNextGenGenome()));
-            }
+            while (bots.length < MAX_BOTS) bots.push(new Bot(createNextGenGenome()));
         }
 
         function resetGame() {
-            player.x = 0; player.y = 0; player.score = 0; player.segments = [];
-            isDashing = false; tapTimes = []; projectiles = []; autoShootTimer = 0;
+            matchTime = 0;
+            MAX_BOTS = isMobile ? 8 : 16; // Restaura a população inicial no reset
+
+            player.x = 0; player.y = 0; player.score = 0; player.segments = []; player.angle = 0;
+            isDashing = false; tapTimes = []; projectiles = []; autoShootTimer = 0; lastFoodTime = Date.now();
             
-            for (let i = 0; i < BASE_SEGMENTS; i++) {
-                player.segments.push({ x: player.x, y: player.y });
-            }
+            for (let i = 0; i < BASE_SEGMENTS; i++) player.segments.push({ x: player.x, y: player.y });
             
-            if (isMobile) {
-                document.getElementById('score').innerText = "0";
-                target.x = player.x;
-                target.y = player.y;
-            } else {
-                document.getElementById('score-pc').innerText = "0";
-            }
+            if (isMobile) { document.getElementById('score').innerText = "0"; target.x = player.x; target.y = player.y; } 
+            else { document.getElementById('score-pc').innerText = "0"; }
             
             updateFirebaseScore(); 
-            
             foods = []; bots = []; particles = []; genePool = [];
             for (let i = 0; i < MAX_FOOD; i++) spawnFood();
             while (bots.length < MAX_BOTS) bots.push(new Bot());
@@ -876,11 +983,8 @@
             document.getElementById('game-over').style.display = 'none';
             document.getElementById('game-over-pc').style.display = 'none';
             if (isMobile) document.getElementById('pause-btn').style.display = 'flex';
-
-            if (soundEnabled) {
-                stopSynthMusic();
-                startSynthMusic();
-            }
+            
+            if (soundEnabled && !audioInterval) startSynthMusic();
         }
 
         function spawnFood(x, y, isDrop = false) {
@@ -893,12 +997,9 @@
             }
             const symbolObj = codeSymbols[Math.floor(Math.random() * codeSymbols.length)];
             foods.push({
-                x, y, baseX: x, baseY: y,
-                radius: isDrop ? 6 : 8,
-                char: symbolObj.char,
-                color: symbolObj.color || '#88ccaa',
-                floatSpeed: Math.random() * 0.05 + 0.02,
-                floatOffset: Math.random() * Math.PI * 2
+                x, y, baseX: x, baseY: y, radius: isDrop ? 6 : 8,
+                char: symbolObj.char, color: symbolObj.color || '#88ccaa',
+                floatSpeed: Math.random() * 0.05 + 0.02, floatOffset: Math.random() * Math.PI * 2
             });
         }
 
@@ -910,36 +1011,118 @@
             }
         }
 
-        let updateTimer = 0;
         function update() {
-            if (isMobile) {
+            if (gameState === 'PLAYING') {
+                player.score += 0.015; 
+                matchTime++;
+                if (matchTime % 300 === 0 && bots.length >= 2) {
+                    evolveLiveBotsGA();
+                }
+                // SISTEMA DE CRESCIMENTO GRADATIVO DE POPULAÇÃO
+                // Aumenta a quantidade máxima de bots a cada ~10 segundos até um limite seguro
+                if (matchTime % 600 === 0 && MAX_BOTS < 40) {
+                    MAX_BOTS++;
+                }
+            }
+
+            if (isAutoPlaying && currentPythonVector) {
+                autoShootTimer++;
+                
+                let nearestFood = null, minFood = 99999;
+                for (let f of foods) {
+                    let d = Math.hypot(f.x - player.x, f.y - player.y);
+                    if (d < minFood) { minFood = d; nearestFood = f; }
+                }
+
+                let nearestBot = null, minBot = 99999;
+                for (let b of bots) {
+                    let d = Math.hypot(b.x - player.x, b.y - player.y);
+                    if (d < minBot) { minBot = d; nearestBot = b; }
+                }
+                
+                let wFome = currentPythonVector[0];
+                let wFuga = currentPythonVector[1];
+                let wAggro = currentPythonVector[2];
+                let wSpd = currentPythonVector[3];
+                let wCirc = currentPythonVector[4] - 5.0; 
+                let wReto = currentPythonVector[5];
+                let wVisaoFood = currentPythonVector[6];
+                let wVisaoBot = currentPythonVector[7];
+                let wConservacao = currentPythonVector[8];
+                let wMassa = currentPythonVector[9];
+
+                let passiveDrain = (wVisaoFood + wVisaoBot + wSpd) * 0.005 * (wMassa / 5.0);
+                player.score -= passiveDrain;
+                if (player.score < 0) player.score = 0;
+
+                let limiteVisaoFood = 80 + (wVisaoFood * 50);
+                if (minFood > limiteVisaoFood) nearestFood = null;
+
+                let limiteVisaoBot = 100 + (wVisaoBot * 60);
+                if (minBot > limiteVisaoBot) nearestBot = null;
+
+                let energiaSuficiente = player.score > (wConservacao * 8);
+
+                let forceX = Math.cos(player.angle) * wReto;
+                let forceY = Math.sin(player.angle) * wReto;
+
+                if (nearestFood) {
+                    let d = minFood;
+                    forceX += ((nearestFood.x - player.x) / d) * wFome;
+                    forceY += ((nearestFood.y - player.y) / d) * wFome;
+                }
+
+                if (nearestBot) {
+                    let d = minBot;
+                    if (player.radius > nearestBot.radius * 1.1) {
+                        forceX += ((nearestBot.x - player.x) / d) * wAggro;
+                        forceY += ((nearestBot.y - player.y) / d) * wAggro;
+                    } else {
+                        forceX -= ((nearestBot.x - player.x) / d) * wFuga * (200/(d+1));
+                        forceY -= ((nearestBot.y - player.y) / d) * wFuga * (200/(d+1));
+                    }
+                    
+                    let botAng = Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x);
+                    botAng += (Math.PI / 2); 
+                    forceX += Math.cos(botAng) * wCirc;
+                    forceY += Math.sin(botAng) * wCirc;
+                    
+                    if (energiaSuficiente && wAggro > 5.0 && d < 300 && autoShootTimer > 40) {
+                        autoShootTimer = 0;
+                        player.score -= 20;
+                        document.getElementById('score-pc').innerText = Math.floor(player.score);
+                        let sAngle = Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x);
+                        projectiles.push({ x: player.x, y: player.y, vx: Math.cos(sAngle) * 15, vy: Math.sin(sAngle) * 15, life: 80, text: Math.random() < 0.5 ? '0' : '1' });
+                        if (player.segments.length > BASE_SEGMENTS) { player.segments.pop(); player.segments.pop(); }
+                    }
+                }
+
+                let desiredAngle = Math.atan2(forceY, forceX);
+                target.x = player.x + Math.cos(desiredAngle) * 100;
+                target.y = player.y + Math.sin(desiredAngle) * 100;
+                
+                let penaltySpeed = 1.0 - ((wMassa - 5.0) * 0.05);
+                player.speed = BASE_SPEED * (0.5 + (wSpd / 10)) * penaltySpeed; 
+                
+                isDashing = (energiaSuficiente && wSpd > 7.0 && player.score > 5 && minBot < 200 && nearestBot != null);
+
+            } else if (!isMobile) {
+                target.x = camera.x + mouseX;
+                target.y = camera.y + mouseY;
+            } else {
                 autoShootTimer++;
                 if (autoShootTimer > 60 && player.score >= 20) {
-                    autoShootTimer = 0;
-                    player.score -= 20;
+                    autoShootTimer = 0; player.score -= 20;
                     document.getElementById('score').innerText = Math.floor(player.score);
-                    
-                    let nearestBot = null;
-                    let minBotDist = 400;
+                    let nearestBot = null, minBotDist = 400;
                     for (let b of bots) {
                         let d = Math.hypot(b.x - player.x, b.y - player.y);
                         if (d < minBotDist) { minBotDist = d; nearestBot = b; }
                     }
-                    
                     const shootAngle = nearestBot ? Math.atan2(nearestBot.y - player.y, nearestBot.x - player.x) : Math.atan2(target.y - player.y, target.x - player.x);
-                    projectiles.push({
-                        x: player.x, y: player.y,
-                        vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15,
-                        life: 80, text: Math.random() < 0.5 ? '0' : '1'
-                    });
-                    if (player.segments.length > BASE_SEGMENTS) {
-                        player.segments.pop();
-                        player.segments.pop();
-                    }
+                    projectiles.push({ x: player.x, y: player.y, vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15, life: 80, text: Math.random() < 0.5 ? '0' : '1' });
+                    if (player.segments.length > BASE_SEGMENTS) { player.segments.pop(); player.segments.pop(); }
                 }
-            } else {
-                target.x = camera.x + mouseX;
-                target.y = camera.y + mouseY;
             }
 
             for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -963,8 +1146,8 @@
             }
 
             if (isDashing && player.score > 0) {
-                player.speed = DASH_SPEED;
-                player.score -= 0.5;
+                let penalty = isAutoPlaying ? (currentPythonVector[3] / 5) * 0.5 : 0.5;
+                player.speed = DASH_SPEED; player.score -= penalty;
                 if(player.score < 0) player.score = 0;
                 
                 if (isMobile) document.getElementById('score').innerText = Math.floor(player.score);
@@ -976,22 +1159,26 @@
                     let tail = player.segments.pop();
                     if(Math.random() < 0.4) spawnFood(tail.x, tail.y, true);
                 }
-            } else {
-                player.speed = BASE_SPEED;
+            } else { 
+                if(!isAutoPlaying) player.speed = BASE_SPEED; 
             }
 
             player.radius = (isMobile ? 8 : 10) + Math.min(20, Math.floor(player.score / 40));
+            
+            let targetAngle = Math.atan2(target.y - player.y, target.x - player.x);
+            let diff = Math.atan2(Math.sin(targetAngle - player.angle), Math.cos(targetAngle - player.angle));
+            player.angle += diff * 0.2;
+
             const pDist = Math.hypot(target.x - player.x, target.y - player.y);
             if (pDist > 5) {
-                player.x += (target.x - player.x) / pDist * player.speed;
-                player.y += (target.y - player.y) / pDist * player.speed;
+                player.x += Math.cos(player.angle) * player.speed;
+                player.y += Math.sin(player.angle) * player.speed;
             }
 
             camera.x = player.x - width / 2;
             camera.y = player.y - height / 2;
 
             let px = player.x, py = player.y;
-            // O espaçamento agora cresce proporcionalmente ao tamanho da cobra
             const spacing = isDashing ? player.radius * 1.5 : player.radius * 1.0; 
             for (let seg of player.segments) {
                 let d = Math.hypot(px - seg.x, py - seg.y);
@@ -1008,32 +1195,32 @@
             for (let i = foods.length - 1; i >= 0; i--) {
                 let f = foods[i];
                 f.y = f.baseY + Math.sin(t + (f.offset || 0)) * 3;
-                
                 let dist = Math.hypot(player.x - f.x, player.y - f.y);
                 
-                if (dist > maxDim * (isMobile ? 4.5 : 1.5)) {
-                    foods.splice(i, 1);
-                    spawnFood();
-                    continue;
-                }
+                if (dist > maxDim * (isMobile ? 4.5 : 1.5)) { foods.splice(i, 1); spawnFood(); continue; }
                 
                 if (dist < player.radius + f.radius) {
                     spawnParticles(f.x, f.y, '#00ff66', 3);
                     foods.splice(i, 1);
-                    player.score += 10;
+                    
+                    let nowTime = Date.now();
+                    let timeSinceLast = nowTime - lastFoodTime;
+                    let speedBonus = Math.max(0, 15 - (timeSinceLast / 100)); 
+                    
+                    player.score += 10 + speedBonus;
+                    lastFoodTime = nowTime;
                     
                     if (isMobile) document.getElementById('score').innerText = Math.floor(player.score);
                     else document.getElementById('score-pc').innerText = Math.floor(player.score);
 
-                    const maxSegments = 120; // Limite absoluto
+                    const maxSegments = 120;
                     const targetSegments = BASE_SEGMENTS + Math.floor(player.score / 25);
                     if (player.segments.length < targetSegments && player.segments.length < maxSegments) {
                         player.segments.push({...player.segments[player.segments.length-1]});
                     }
                     if(foods.length < MAX_FOOD) spawnFood();
                 } else if (dist < MAGNET_RADIUS) {
-                    f.x += (player.x - f.x) * 0.1;
-                    f.y += (player.y - f.y) * 0.1;
+                    f.x += (player.x - f.x) * 0.1; f.y += (player.y - f.y) * 0.1;
                     f.baseX = f.x; f.baseY = f.y;
                 }
             }
@@ -1042,23 +1229,17 @@
 
             for (let bot of bots) {
                 bot.update();
-                
                 for (let seg of player.segments) {
-                    if (Math.hypot(bot.x - seg.x, bot.y - seg.y) < bot.radius + player.radius*0.7) {
-                        bot.die(); break;
-                    }
+                    if (Math.hypot(bot.x - seg.x, bot.y - seg.y) < bot.radius + player.radius*0.7) { bot.die(); break; }
                 }
-
                 if (!bot.dead && gameState === 'PLAYING') {
                     for (let seg of bot.segments) {
                         if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + bot.radius*0.7) {
-                            bot.damageDealtToPlayer++;
-                            triggerGameOver(); break;
+                            bot.damageDealtToPlayer++; triggerGameOver(); break;
                         }
                     }
                     if (Math.hypot(player.x - bot.x, player.y - bot.y) < player.radius + bot.radius) {
-                        bot.damageDealtToPlayer++;
-                        bot.die(); triggerGameOver();
+                        bot.damageDealtToPlayer++; bot.die(); triggerGameOver();
                     }
                 }
             }
@@ -1081,59 +1262,44 @@
             const sx = Math.floor(camera.x / GRID_SIZE) * GRID_SIZE;
             const sy = Math.floor(camera.y / GRID_SIZE) * GRID_SIZE;
             ctx.beginPath();
-            for (let x = sx; x < sx + width + GRID_SIZE; x += GRID_SIZE) {
-                ctx.moveTo(x, sy); ctx.lineTo(x, sy + height + GRID_SIZE);
-            }
-            for (let y = sy; y < sy + height + GRID_SIZE; y += GRID_SIZE) {
-                ctx.moveTo(sx, y); ctx.lineTo(sx + width + GRID_SIZE, y);
-            }
+            for (let x = sx; x < sx + width + GRID_SIZE; x += GRID_SIZE) { ctx.moveTo(x, sy); ctx.lineTo(x, sy + height + GRID_SIZE); }
+            for (let y = sy; y < sy + height + GRID_SIZE; y += GRID_SIZE) { ctx.moveTo(sx, y); ctx.lineTo(sx + width + GRID_SIZE, y); }
             ctx.stroke();
 
             ctx.font = '12px "Share Tech Mono"';
             for (let f of foods) {
-                // Se estiver fora da tela, ignora o desenho
-                if (f.x < camera.x - 20 || f.x > camera.x + width + 20 || 
-                    f.y < camera.y - 20 || f.y > camera.y + height + 20) {
-                    continue;
-                }
+                if (f.x < camera.x - 20 || f.x > camera.x + width + 20 || f.y < camera.y - 20 || f.y > camera.y + height + 20) continue;
                 ctx.fillStyle = f.color || '#88ccaa';
                 ctx.fillText(f.char, f.x - 4, f.y + 4);
             }
 
             for (let p of particles) {
                 ctx.globalAlpha = Math.max(0, p.life);
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 4, 4);
+                ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4);
             }
             ctx.globalAlpha = 1.0;
 
             for (let p of projectiles) {
                 ctx.font = 'bold 16px "Share Tech Mono"';
-                ctx.fillStyle = '#ffcc00';
-                ctx.fillText(p.text, p.x - 5, p.y + 5);
+                ctx.fillStyle = '#ffcc00'; ctx.fillText(p.text, p.x - 5, p.y + 5);
             }
 
             for (let bot of bots) {
                 for (let i = bot.segments.length - 1; i >= 0; i--) {
                     const seg = bot.segments[i];
-                    ctx.fillStyle = '#330011';
-                    ctx.strokeStyle = '#ff3355';
-                    ctx.lineWidth = 2;
+                    if (seg.x < camera.x - 50 || seg.x > camera.x + width + 50 || seg.y < camera.y - 50 || seg.y > camera.y + height + 50) continue;
+                    ctx.fillStyle = '#330011'; 
+                    ctx.strokeStyle = bot.isDashing ? '#ffcc00' : '#ff3355'; // Atualiza cor se estiver usando Overclock
+                    ctx.lineWidth = bot.isDashing ? 3 : 2;
                     let s = bot.radius * (1 - (i/bot.segments.length)*0.3);
-                    ctx.fillRect(seg.x-s, seg.y-s, s*2, s*2);
-                    ctx.strokeRect(seg.x-s, seg.y-s, s*2, s*2);
+                    ctx.fillRect(seg.x-s, seg.y-s, s*2, s*2); ctx.strokeRect(seg.x-s, seg.y-s, s*2, s*2);
                 }
             }
 
             if (gameState === 'PLAYING' || gameState === 'GAMEOVER' || gameState === 'PAUSED') {
                 for (let i = player.segments.length - 1; i >= 0; i--) {
                     const seg = player.segments[i];
-                    
-                    // Culling dos segmentos
-                    if (seg.x < camera.x - 50 || seg.x > camera.x + width + 50 || 
-                        seg.y < camera.y - 50 || seg.y > camera.y + height + 50) {
-                        continue;
-                    }
+                    if (seg.x < camera.x - 50 || seg.x > camera.x + width + 50 || seg.y < camera.y - 50 || seg.y > camera.y + height + 50) continue;
             
                     const s = player.radius * (1 - (i/player.segments.length)*0.4);
                     ctx.fillStyle = gameState === 'GAMEOVER' ? '#222' : '#002211';
@@ -1160,30 +1326,126 @@
         }
 
         function gameLoop() {
-            if (gameState === 'PLAYING') update();
+            if (gameState === 'PLAYING') {
+                let iterations = isAutoPlaying ? 5 : 1;
+                for (let i = 0; i < iterations; i++) {
+                    if (gameState === 'PLAYING') update();
+                }
+            }
             draw();
             requestAnimationFrame(gameLoop);
         }
 
         function triggerGameOver() {
             if(gameState === 'GAMEOVER') return;
+            
+            if (isAutoPlaying && pyodideReady) {
+                let fitness = Math.floor(player.score + (player.segments.length * 3));
+                
+                // Acumula o fitness do teste atual para o indivíduo da vez
+                aiFitnessAccumulator[currentAiIndex] += fitness;
+                aiSubTestIndex++;
+
+                // Se ainda não completou os 5 testes (trials) para este indivíduo, roda de novo
+                if (aiSubTestIndex < EVAL_TRIALS) {
+                    setTimeout(() => { resetGame(); }, 1);
+                    return;
+                }
+
+                // Completou os 5 testes! Calcula a média aritmética e avança para o próximo indivíduo
+                let mediaFitness = Math.floor(aiFitnessAccumulator[currentAiIndex] / EVAL_TRIALS);
+                aiFitnessResults.push(mediaFitness);
+                
+                currentAiIndex++;
+                aiSubTestIndex = 0; // Reseta o contador de subtestes para o próximo indivíduo
+
+                // Se a geração inteira acabou (testou todos os indivíduos 5 vezes cada), chama o Python!
+                if (currentAiIndex >= aiPopulation.length) {
+                    try {
+                        let pyFit = window.pyodide.toPy(aiFitnessResults);
+                        let pyVec = window.pyodide.toPy(aiPopulation);
+                        window.pyodide.globals.set("hist_fit", pyFit);
+                        window.pyodide.globals.set("hist_vec", pyVec);
+                        
+                        let result = window.pyodide.runPython(`optimize(hist_fit, hist_vec)`);
+                        let parsed = result.toJs();
+                        
+                        let newPop = [];
+                        let jsArray = Array.from(parsed);
+                        for(let i=0; i<jsArray.length; i++) {
+                            let vec = Array.from(jsArray[i]);
+                            if(vec.length === 10) {
+                                newPop.push([
+                                    Math.max(0, Math.min(10, Number(vec[0]))),
+                                    Math.max(0, Math.min(10, Number(vec[1]))),
+                                    Math.max(0, Math.min(10, Number(vec[2]))),
+                                    Math.max(0, Math.min(10, Number(vec[3]))),
+                                    Math.max(0, Math.min(10, Number(vec[4]))),
+                                    Math.max(0, Math.min(10, Number(vec[5]))),
+                                    Math.max(0, Math.min(10, Number(vec[6]))),
+                                    Math.max(0, Math.min(10, Number(vec[7]))),
+                                    Math.max(0, Math.min(10, Number(vec[8]))),
+                                    Math.max(0, Math.min(10, Number(vec[9])))
+                                ]);
+                            }
+                        }
+
+                        if(newPop.length > 0) {
+                            aiPopulation = newPop;
+                            aiFitnessResults = [];
+                            aiFitnessAccumulator = Array(newPop.length).fill(0);
+                            currentAiIndex = 0;
+                            aiGeneration++;
+                        } else {
+                            throw new Error("O script Python retornou matriz vazia ou tamanhos de vetores inválidos.");
+                        }
+                        
+                        pyFit.destroy(); pyVec.destroy(); if(result.destroy) result.destroy();
+                    } catch(e) {
+                        console.error("Erro no script Python", e);
+                        isAutoPlaying = false; 
+                        document.getElementById('dev-status').innerText = "Status: IA CRASHOU (Erro Python)";
+                        document.getElementById('dev-status').style.color = "var(--danger)";
+                    }
+                }
+
+                if (isAutoPlaying) {
+                    updateFirebaseScore(true);
+                    currentPythonVector = aiPopulation[currentAiIndex];
+                    updatePythonDisplay();
+                    setTimeout(() => { resetGame(); }, 1); 
+                    return; 
+                }
+            }
+
             gameState = 'GAMEOVER';
             isDashing = false;
-            playSound('die');
-            stopSynthMusic();
+            playSound('die'); stopSynthMusic();
 
-            if (player.score > personalBest) personalBest = Math.floor(player.score);
-            
             if (isMobile) {
                 document.getElementById('pause-btn').style.display = 'none';
                 document.getElementById('go-score').innerText = Math.floor(player.score) + ' TB';
-                document.getElementById('go-personal-best').innerText = personalBest + ' TB';
-                document.getElementById('go-global-best').innerText = Math.max(globalBest, personalBest) + ' TB';
+                if (isAutoPlaying) {
+                    if (player.score > personalAiBest) personalAiBest = Math.floor(player.score);
+                    document.getElementById('go-personal-best').innerText = personalAiBest + ' TB (IA)';
+                    document.getElementById('go-global-best').innerText = Math.max(globalAiBest, personalAiBest) + ' TB (IA)';
+                } else {
+                    if (player.score > personalBest) personalBest = Math.floor(player.score);
+                    document.getElementById('go-personal-best').innerText = personalBest + ' TB';
+                    document.getElementById('go-global-best').innerText = Math.max(globalBest, personalBest) + ' TB';
+                }
                 document.getElementById('game-over').style.display = 'flex';
             } else {
                 document.getElementById('go-score-pc').innerText = Math.floor(player.score) + ' TB';
-                document.getElementById('go-personal-best-pc').innerText = personalBest + ' TB';
-                document.getElementById('go-global-best-pc').innerText = Math.max(globalBest, personalBest) + ' TB';
+                if (isAutoPlaying) {
+                    if (player.score > personalAiBest) personalAiBest = Math.floor(player.score);
+                    document.getElementById('go-personal-best-pc').innerText = personalAiBest + ' TB (IA)';
+                    document.getElementById('go-global-best-pc').innerText = Math.max(globalAiBest, personalAiBest) + ' TB (IA)';
+                } else {
+                    if (player.score > personalBest) personalBest = Math.floor(player.score);
+                    document.getElementById('go-personal-best-pc').innerText = personalBest + ' TB';
+                    document.getElementById('go-global-best-pc').innerText = Math.max(globalBest, personalBest) + ' TB';
+                }
                 document.getElementById('game-over-pc').style.display = 'flex';
             }
             
@@ -1192,156 +1454,108 @@
 
         function updateFirebaseScore(isDeath = false) {
             if (!playerDocRef) return;
-            
-            // ATUALIZAÇÃO GARANTIDA: Verifica o recorde antes de montar o pacote para o Firebase
             let currentScore = Math.floor(player.score);
-            if (currentScore > personalBest) {
-                personalBest = currentScore;
+            const updateData = { isOnline: true, lastSeen: firebase.firestore.FieldValue.serverTimestamp() };
+
+            if (isAutoPlaying) {
+                if (currentScore > personalAiBest) personalAiBest = currentScore;
+                updateData.bestAiScore = personalAiBest;
+                if (!isDeath) updateData.aiScore = currentScore;
+            } else {
+                if (currentScore > personalBest) personalBest = currentScore;
+                updateData.bestScore = personalBest;
+                if (!isDeath) updateData.score = currentScore;
             }
 
-            const updateData = {
-                bestScore: personalBest,
-                isOnline: true,
-                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            if (!isDeath) {
-                updateData.score = currentScore;
-            }
-
-            playerDocRef.update(updateData).catch((err)=>{ 
-                console.warn("Sincronização falhou temporariamente:", err); 
-            });
+            playerDocRef.update(updateData).catch((err)=>{});
         }
 
-        window.addEventListener('beforeunload', () => {
-            if (playerDocRef) playerDocRef.update({ isOnline: false }).catch(()=>{});
-        });
-
+        window.addEventListener('beforeunload', () => { if (playerDocRef) playerDocRef.update({ isOnline: false }).catch(()=>{}); });
         window.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'hidden' && playerDocRef) {
-                // Ao esconder a aba, apenas atualiza lastSeen, mantém online
-                // (o heartbeat vai cuidar de marcar offline se necessário)
-                playerDocRef.update({ 
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(()=>{});
+                playerDocRef.update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() }).catch(()=>{});
             } else if (document.visibilityState === 'visible' && (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'GAMEOVER')) {
                 heartbeat();
             }
         });
 
         function heartbeat() {
-            // Mantém online durante jogo, pause e game over e envia os dados consolidados
             if (playerDocRef && (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'GAMEOVER')) {
                 updateFirebaseScore(gameState === 'GAMEOVER');
             }
         }
 
         function initRealtimeRanking() {
-            db.collection("players").orderBy("bestScore", "desc").limit(100).onSnapshot(
+            db.collection("players").onSnapshot(
                 (snap) => {
-                    let pData = [];
-                    let meFound = false;
+                    let pDataManual = [];
+                    let pDataAI = [];
+                    let meFoundManual = false;
+                    let meFoundAI = false;
 
                     snap.forEach(doc => {
                         const d = doc.data();
-                        
-                        // CORREÇÃO: Lógica de online/offline simplificada e corrigida
-                        let on = false;
-                        let timeDiff = 999999;
-                        
+                        let on = false; let timeDiff = 999999;
                         if (d.lastSeen) {
-                            if (d.lastSeen.toMillis) {
-                                timeDiff = Date.now() - d.lastSeen.toMillis();
-                            } else if (d.lastSeen.toDate) {
-                                timeDiff = Date.now() - d.lastSeen.toDate().getTime();
-                            } else if (d.lastSeen instanceof Date) {
-                                timeDiff = Date.now() - d.lastSeen.getTime();
-                            } else if (typeof d.lastSeen === 'number') {
-                                timeDiff = Date.now() - d.lastSeen;
-                            }
+                            if (d.lastSeen.toMillis) timeDiff = Date.now() - d.lastSeen.toMillis();
+                            else if (d.lastSeen.toDate) timeDiff = Date.now() - d.lastSeen.toDate().getTime();
+                            else if (d.lastSeen instanceof Date) timeDiff = Date.now() - d.lastSeen.getTime();
+                            else if (typeof d.lastSeen === 'number') timeDiff = Date.now() - d.lastSeen;
                         }
                         
-                        // Considera online se isOnline=true E lastSeen < 45 segundos
-                        // Isso evita jogadores "fantasma" que fecharam o navegador sem avisar
-                        if (d.isOnline === true && timeDiff < 45000) {
-                            on = true;
-                        }
+                        if (d.isOnline === true && timeDiff < 45000) on = true;
+                        if (d.nickname === myNickname) { on = true; }
                         
-                        // Sempre força o jogador local como online
-                        if (d.nickname === myNickname) {
-                            on = true;
-                            meFound = true;
-                        }
-                        
-                        // CORREÇÃO: Sempre usar bestScore para ranking (consistente com query do Firestore)
                         let best = Math.floor(d.bestScore || 0);
                         let current = Math.floor(d.score || 0);
-                        
+                        let bestAi = Math.floor(d.bestAiScore || 0);
+                        let currentAi = Math.floor(d.aiScore || 0);
+
                         if (best > globalBest) globalBest = best;
+                        if (bestAi > globalAiBest) globalAiBest = bestAi;
                         
-                        pData.push({ 
-                            nick: d.nickname, 
-                            bestScore: best,
-                            currentScore: current,
-                            on: on 
-                        });
-                    });
-
-                    // Adiciona jogador local se não estiver no snapshot ainda
-                    if (!meFound && myNickname) {
-                        pData.push({ 
-                            nick: myNickname, 
-                            bestScore: personalBest,
-                            currentScore: Math.floor(player.score),
-                            on: true 
-                        });
-                    }
-
-                    // Ordena por bestScore (igual ao Firestore) para consistência
-                    pData.sort((a, b) => b.bestScore - a.bestScore);
-
-                    const targetLists = isMobile 
-                        ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
-                        : [document.getElementById('ranking-list-pc')];
-
-                    targetLists.forEach(targetList => {
-                        if (!targetList) return;
-                        targetList.innerHTML = "";
-                        
-                        if (pData.length === 0) {
-                            targetList.innerHTML = '<li>Sem jogadores</li>';
-                            return;
+                        if (best > 0 || d.nickname === myNickname) {
+                            pDataManual.push({ nick: d.nickname, bestScore: best, currentScore: current, on: on });
+                            if (d.nickname === myNickname) meFoundManual = true;
                         }
-                        
-                        pData.forEach((p, index) => {
-                            const li = document.createElement('li');
-                            const rank = index + 1;
-                            const statusTag = p.on 
-                                ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' 
-                                : '<span style="color:#666; font-size:10px;">[OFF]</span>';
-                            
-                            // Mostra score atual entre parênteses se online e diferente do best
-                            const currentTag = (p.on && p.currentScore > 0 && p.currentScore !== p.bestScore) 
-                                ? ` <span style="color:#ffcc00; font-size:10px;">(${p.currentScore})</span>` 
-                                : '';
-                            
-                            li.innerHTML = `<span>#${rank} ${p.nick.substring(0,8)} ${statusTag}${currentTag}</span> <span>${p.bestScore} TB</span>`;
-                            if (p.nick === myNickname) li.style.color = '#ffcc00';
-                            
-                            targetList.appendChild(li);
-                        });
+
+                        if (bestAi > 0 || d.nickname === myNickname) {
+                            pDataAI.push({ nick: d.nickname, bestScore: bestAi, currentScore: currentAi, on: on });
+                            if (d.nickname === myNickname) meFoundAI = true;
+                        }
                     });
+
+                    if (!meFoundManual && myNickname) pDataManual.push({ nick: myNickname, bestScore: personalBest, currentScore: Math.floor(player.score), on: true });
+                    if (!meFoundAI && myNickname) pDataAI.push({ nick: myNickname, bestScore: personalAiBest, currentScore: isAutoPlaying ? Math.floor(player.score) : 0, on: true });
+
+                    pDataManual.sort((a, b) => b.bestScore - a.bestScore);
+                    pDataAI.sort((a, b) => b.bestScore - a.bestScore);
+
+                    const manualLists = isMobile ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')] : [document.getElementById('ranking-list-pc')];
+                    const aiLists = isMobile ? [document.getElementById('ranking-list-mobile-pause-ai'), document.getElementById('ranking-list-mobile-gameover-ai')] : [document.getElementById('ranking-list-pc-ai')];
+
+                    const renderList = (dataList, targetLists, isAI) => {
+                        targetLists.forEach(targetList => {
+                            if (!targetList) return;
+                            targetList.innerHTML = "";
+                            if (dataList.length === 0) { targetList.innerHTML = '<li>Sem dados</li>'; return; }
+                            
+                            dataList.slice(0, 50).forEach((p, index) => {
+                                const li = document.createElement('li');
+                                const statusTag = p.on ? '<span style="color:#00ff66; font-size:10px;">[ON]</span>' : '<span style="color:#666; font-size:10px;">[OFF]</span>';
+                                const currentTag = (p.on && p.currentScore > 0 && p.currentScore !== p.bestScore) ? ` <span style="color:#ffcc00; font-size:10px;">(${p.currentScore})</span>` : '';
+                                li.innerHTML = `<span>#${index + 1} ${p.nick.substring(0,8)} ${statusTag}${currentTag}</span> <span>${p.bestScore} TB</span>`;
+                                if (p.nick === myNickname) li.style.color = '#ffcc00';
+                                targetList.appendChild(li);
+                            });
+                        });
+                    };
+
+                    renderList(pDataManual, manualLists, false);
+                    renderList(pDataAI, aiLists, true);
                 },
                 (error) => {
-                    // CORREÇÃO: Error handler para o onSnapshot não falhar silenciosamente
-                    console.error("Erro no ranking em tempo real:", error);
-                    const targetLists = isMobile 
-                        ? [document.getElementById('ranking-list-mobile-pause'), document.getElementById('ranking-list-mobile-gameover')]
-                        : [document.getElementById('ranking-list-pc')];
-                    targetLists.forEach(targetList => {
-                        if (targetList) targetList.innerHTML = '<li style="color:var(--danger)">Erro de sincronização</li>';
-                    });
+                    console.log(error);
                 }
             );
         }
